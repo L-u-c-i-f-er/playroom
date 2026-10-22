@@ -138,6 +138,10 @@ const GAMES = [
    tags:['1–12 players', '1 min rounds', 'Online', 'One device'], art:() => AB.art()},
   {id:'leastcount', name:'Least Count', blurb:'Throw high cards, keep the jokers and call Show at 10 or less. A wrong Show costs 40.',
    tags:['2–6 players', 'Elimination', 'Online', 'Pass & play'], art:() => LC.art()},
+  {id:'uno', name:'UNO', blurb:'Match color or number, slam Draw Twos and bluff a Wild Draw Four. Forget to call UNO and you draw two.',
+   tags:['2–10 players', 'First to 500', 'Online', 'Pass & play'], art:() => ENG.uno.art()},
+  {id:'unoflip', name:'UNO Flip', blurb:'Two-sided UNO. One Flip card turns everything to the Dark Side: Draw Five, Skip Everyone, Wild Draw Color.',
+   tags:['2–10 players', 'Light & Dark sides', 'Online', 'Pass & play'], art:() => ENG.unoflip.art()},
 ];
 // Each game plugs in here: rules engine (newGame/apply/needs) plus its home and table views.
 const ENG = {dealmaker:{name:'Dealmaker', min:2, max:5, newGame, apply, needs, home:() => vHome(), view:s => vGame(s)}};
@@ -544,7 +548,7 @@ function flights(s, before){
   const dealing = dealAnim;
   if (dealing){ p0 = clone(s); p0.players.forEach(p => { p.hand = []; }); dealAnim = false; }
   if (!p0 || (s.ln || 0) < (p0.ln || 0) || p0.players.map(p => p.id).join() !== s.players.map(p => p.id).join()) return done;
-  const deck = rectOf('#deck .card'); if (!deck) return done;
+  const deck = rectOf('#deck .card, #deck .uc'); if (!deck) return done;
   const from0 = ctr(deck), stag = dealing ? 85 : 140;
   let i = 0;
   for (const p of s.players){

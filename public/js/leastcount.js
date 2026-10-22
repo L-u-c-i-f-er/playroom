@@ -226,7 +226,7 @@ const LC = (() => {
 
   Object.assign(H, {
     lcsel:d => { const id = +d.id, s = ui.lsel || []; ui.lsel = s.includes(id) ? s.filter(x => x !== id) : [...s, id]; render(); },
-    lcthrow:() => send({t:'throw', cards:ui.lsel || []}),
+    lcthrow:() => { const hand = P(G, me)?.hand || [], cards = (ui.lsel || []).filter(id => hand.includes(id)); ui.lsel = []; send({t:'throw', cards}); },   // only send what the button shows: stale picks from earlier throws/deals made the server reject the throw
     lcpick:d => send({t:'pick', from:d.from}),
     lcshowask:() => { ui.lshow = true; render(); },
     lcshowx:() => { ui.lshow = false; render(); },
