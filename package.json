@@ -1,0 +1,19 @@
+{
+  "name": "playroom",
+  "version": "1.0.0",
+  "description": "Dealmaker, Tambola, Rummy, Andar Bahar and Least Count to play with friends online or on one device.",
+  "private": true,
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "node test/dealmaker.test.cjs && node test/games.test.cjs && node test/cardgames.test.cjs"
+  },
+  "engines": {
+    "node": ">=18.11"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}
