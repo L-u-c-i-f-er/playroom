@@ -476,54 +476,435 @@ h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0}
   .ab-joker .pc{--pw:80px}
 }
 
-/* ---------- UNO / UNO Flip ---------- */
+/* ---------- UNO / UNO Flip ----------
+   Its own room, not the club felt: UNO sits on a red sunburst like the box art; Flip plays on a
+   daylight-blue table that turns over to a neon Dark Side. Chunky Lilita One type throughout.
+   One signature moving part: the direction ring around the pile, tinted with the colour in play. */
+body[data-game="uno"]{background:repeating-conic-gradient(from 0deg at 50% 42%,rgba(255,255,255,.05) 0 7deg,transparent 7deg 14deg) fixed,radial-gradient(circle at 50% 42%,#f0412f 0,#c5161d 38%,#7a0a10 78%,#3f0407) fixed;background-color:#3f0407}
+body[data-game="unoflip"]{background:radial-gradient(circle at 50% 30%,#3b1260 0,#1a0830 55%,#0b0414) fixed;background-color:#0b0414}
+[data-game^="uno"] .sheet h2,[data-game^="uno"] #banner .bt,[data-game^="uno"] .curtain h2{font-family:'Lilita One',var(--display);font-weight:400;letter-spacing:0}
+[data-game^="uno"] #banner .bt{color:#ffd21f;-webkit-text-stroke:3px #1a0505;paint-order:stroke fill;text-shadow:5px 5px 0 #1a0505,0 18px 40px rgba(0,0,0,.5);transform:rotate(-6deg)}
+[data-game^="uno"] .btn.gold{background:linear-gradient(180deg,#ffe066,#ffc400);color:#2a1300;box-shadow:0 4px 0 #8a5a00}
+[data-game="unoflip"] .btn.gold{background:linear-gradient(180deg,#ff7cc0,#e0438c);color:#fff;box-shadow:0 4px 0 #7a1650}
+.uno-logo{display:inline-grid;place-items:center;position:relative;padding:5px 18px;border-radius:50%;background:#e3261c;box-shadow:0 0 0 3px #fff,0 0 0 5px #1a0505,0 6px 14px rgba(0,0,0,.35);transform:rotate(-8deg)}
+.uno-logo b{font:400 26px/1 'Lilita One',var(--display);color:#ffd21f;-webkit-text-stroke:2px #1a0505;paint-order:stroke fill;text-shadow:2px 2px 0 #1a0505}
+.uno-logo i{position:absolute;right:-16px;bottom:-9px;padding:2px 7px;border-radius:7px;font:400 13px/1 'Lilita One',var(--display);font-style:normal;color:#ff4fa3;background:#1a0530;box-shadow:0 0 0 2px #fff;transform:rotate(10deg)}
+.uno-logo.big{padding:16px 46px;margin:8px 0 6px 6px}
+.uno-logo.big b{font-size:clamp(64px,10vw,116px);-webkit-text-stroke:5px #1a0505;text-shadow:6px 6px 0 #1a0505}
+.uno-logo.big i{right:-26px;bottom:-12px;padding:4px 12px;font-size:clamp(20px,3vw,34px);border-radius:10px;box-shadow:0 0 0 3px #fff}
+
+/* cards: the real deck's white border, tilted oval and outlined numerals */
 .uc{--pw:74px;--uc:#d8352a;width:var(--pw);aspect-ratio:5/7.4;flex:none;position:relative;border-radius:calc(var(--pw)*.11);background:var(--uc);color:#fff;overflow:hidden;user-select:none;-webkit-user-select:none;
   box-shadow:inset 0 0 0 calc(var(--pw)*.055) #fbf8f0,0 0 0 1px rgba(0,0,0,.3),0 4px 12px rgba(0,0,0,.35)}
+.uc::after{content:"";position:absolute;inset:0;z-index:2;pointer-events:none;background:linear-gradient(160deg,rgba(255,255,255,.26),transparent 38%)}
 .uc.dark{box-shadow:inset 0 0 0 calc(var(--pw)*.055) #0d0d10,0 0 0 1px rgba(255,255,255,.22),0 4px 12px rgba(0,0,0,.35)}
 .uc::before{content:"";position:absolute;inset:17% 13%;border-radius:50%;background:#fbf8f0;transform:rotate(32deg) scaleX(.86)}
 .uc.dark::before{background:#141018}
 .uc.wild::before{background:conic-gradient(#d8352a 0 25%,#1f6bd0 0 50%,#2e9b48 0 75%,#f2c21b 0)}
 .uc.wild.dark::before{background:conic-gradient(#e0438c 0 25%,#109f9f 0 50%,#f0781a 0 75%,#7a3bc9 0)}
 .uc .uco{position:absolute;inset:0;display:grid;place-content:center;justify-items:center;gap:2px;z-index:1;color:var(--uc)}
-.uc .uco b{font:800 calc(var(--pw)*.46)/1 var(--display);letter-spacing:-.05em;-webkit-text-stroke:calc(var(--pw)*.014) #111;paint-order:stroke fill;text-shadow:calc(var(--pw)*.02) calc(var(--pw)*.025) 0 #111}
-.uc .uco b.w{font-size:calc(var(--pw)*.3)}
-.uc .uco small{font:800 calc(var(--pw)*.12)/1 var(--display);letter-spacing:.06em;color:#fff;-webkit-text-stroke:calc(var(--pw)*.01) #111;paint-order:stroke fill}
+.uc .uco b{font:400 calc(var(--pw)*.5)/1 'Lilita One',var(--display);-webkit-text-stroke:calc(var(--pw)*.018) #111;paint-order:stroke fill;text-shadow:calc(var(--pw)*.025) calc(var(--pw)*.03) 0 #111}
+.uc .uco b.w{font-size:calc(var(--pw)*.32)}
+.uc .uco small{font:400 calc(var(--pw)*.13)/1 'Lilita One',var(--display);letter-spacing:.04em;color:#fff;-webkit-text-stroke:calc(var(--pw)*.012) #111;paint-order:stroke fill}
 .uc.dark .uco small{color:var(--uc)}
+.uc.dark .uco b{-webkit-text-stroke:calc(var(--pw)*.012) rgba(255,255,255,.55);text-shadow:0 0 calc(var(--pw)*.1) var(--uc),0 0 calc(var(--pw)*.03) var(--uc)}
 .uc.wild .uco{color:#fff}
-.uc .ucn{position:absolute;left:10%;top:6%;z-index:1;font:800 calc(var(--pw)*.17)/1 var(--display);letter-spacing:-.04em;text-shadow:0 1px 0 rgba(0,0,0,.6)}
+.uc .ucn{position:absolute;left:10%;top:6%;z-index:1;font:400 calc(var(--pw)*.19)/1 'Lilita One',var(--display);text-shadow:0 1px 0 rgba(0,0,0,.6)}
 .uc .ucn.r{left:auto;top:auto;right:10%;bottom:6%;transform:rotate(180deg)}
 .uc.back{--uc:#141416}
 .uc.back::before{background:#d8352a}
-.uc.back span{position:absolute;inset:0;z-index:1;display:grid;place-items:center;transform:rotate(-28deg);font:800 calc(var(--pw)*.3)/1 var(--display);color:#f2c21b;-webkit-text-stroke:calc(var(--pw)*.014) #111;paint-order:stroke fill;text-shadow:2px 2px 0 #111}
-.uc.xs{--pw:30px}.uc.sm{--pw:58px}
-.uc.xs .uco small,.uc.xs .ucn{display:none}
+.uc.back span{position:absolute;inset:0;z-index:1;display:grid;place-items:center;transform:rotate(-28deg);font:400 calc(var(--pw)*.32)/1 'Lilita One',var(--display);color:#f2c21b;-webkit-text-stroke:calc(var(--pw)*.016) #111;paint-order:stroke fill;text-shadow:2px 2px 0 #111}
+.uc.xs{--pw:30px}.uc.mini{--pw:24px}
+.uc.xs .uco small,.uc.xs .ucn,.uc.mini .uco small,.uc.mini .ucn{display:none}
 .uno-art .fi .uc{--pw:92px}
-.fan .uno-art .fi .uc{--pw:118px}
-.upile{display:grid}
-.upile>div{grid-area:1/1}
-.rtable .uc{--pw:84px}
-.uswatch{display:inline-flex;align-items:center;gap:6px;font-weight:700;color:var(--text)}
-.uswatch::before{content:"";width:12px;height:12px;border-radius:50%;background:var(--uc);box-shadow:0 0 0 2px rgba(255,255,255,.7)}
-.ulog{display:grid;gap:2px;margin-top:4px;font-size:12px;color:var(--muted)}
-.ulog span:last-child{color:var(--text)}
-.uno-hand{padding:22px 4px 6px;flex-wrap:wrap;row-gap:12px}
-.uno-hand .rslot+.rslot{margin-left:-22px}
-.uno-hand .rslot.ok{transform:translateY(-12px)}
-.uno-hand .rslot.ok .uc{box-shadow:inset 0 0 0 calc(var(--pw)*.055) #fbf8f0,0 0 0 3px var(--brass),0 10px 20px rgba(0,0,0,.45)}
-.uno-hand .rslot.ok .uc.dark{box-shadow:inset 0 0 0 calc(var(--pw)*.055) #0d0d10,0 0 0 3px var(--brass),0 10px 20px rgba(0,0,0,.45)}
-.uno-hand .rslot.no{cursor:default}
-.uno-hand .rslot.no:hover{transform:none}
-.uno-hand .rslot.no .uc{filter:brightness(.6) saturate(.75)}
-.uno-peek{display:flex;flex-wrap:wrap;row-gap:4px}
-.uno-peek .uc+.uc{margin-left:-12px}
+.fan .uno-art .fi .uc{--pw:120px}
 .mini-groups .uc+.uc{margin-left:-14px}
+
+/* the room */
+.game.uno-room,.game.mf-room,.game.sol-room{grid-template-columns:minmax(0,1fr)}   /* no log sidebar in these rooms */
+.uno-room{--text:#fff;--muted:rgba(255,255,255,.75);color:var(--text)}
+.uno-room.is-flip.light{--text:#0f2a3a;--muted:#3f6375;background:radial-gradient(120% 90% at 50% 38%,#fff 0,#d4f1fa 45%,#86cbe2 100%)}
+.uno-room.is-flip.dark{background:radial-gradient(120% 90% at 50% 38%,#3a0f5e 0,#1b0730 55%,#09030f 100%)}
+.uno-bar{display:flex;align-items:center;gap:22px;flex-wrap:wrap;padding:16px 4px 4px;position:relative;z-index:5}
+.uno-meta{font-weight:600;font-size:13px;padding:6px 12px;border-radius:999px;background:rgba(0,0,0,.2)}
+.uno-room .tool{color:var(--text);border-color:rgba(255,255,255,.35);background:rgba(0,0,0,.16)}
+.is-flip.light .tool,.is-flip.light .uno-meta{border-color:rgba(15,42,58,.18);background:rgba(255,255,255,.55)}
+.uno-table{--cc:#fff;position:relative;height:clamp(400px,52vh,520px);transform-style:preserve-3d}
+.uno-table.flipping{animation:unoflip .9s cubic-bezier(.55,0,.3,1) both}
+@keyframes unoflip{0%{transform:perspective(1400px) rotateY(0)}50%{transform:perspective(1400px) rotateY(90deg) scale(.9)}100%{transform:perspective(1400px) rotateY(0)}}
+.uno-felt{position:absolute;left:7%;right:7%;top:18%;bottom:2%;border-radius:50%;background:radial-gradient(closest-side,rgba(0,0,0,.14),rgba(0,0,0,.34));box-shadow:inset 0 0 0 3px rgba(255,255,255,.2),inset 0 14px 50px rgba(0,0,0,.35)}
+.is-flip.light .uno-felt{background:radial-gradient(closest-side,rgba(255,255,255,.8),rgba(255,255,255,.35));box-shadow:inset 0 0 0 3px rgba(15,42,58,.12),0 20px 60px rgba(15,42,58,.15)}
+.is-flip.dark .uno-felt{background:radial-gradient(closest-side,rgba(224,67,140,.08),rgba(0,0,0,.45));box-shadow:inset 0 0 0 2px rgba(255,79,163,.4),0 0 60px rgba(122,59,201,.35)}
+
+.uno-seat{position:absolute;transform:translate(-50%,-50%);width:124px;display:grid;justify-items:center;gap:2px;text-align:center;z-index:2}
+.uno-seat b{max-width:124px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:400 16px/1.15 'Lilita One',var(--display);display:flex;align-items:center;gap:4px}
+.uno-seat small{font-size:11px;color:var(--muted)}
+.uno-who{position:relative}
+.uno-who .av{width:46px;height:46px;font-size:20px;box-shadow:0 0 0 3px #fff,0 4px 10px rgba(0,0,0,.35)}
+.uno-seat.up .uno-who::after{content:"";position:absolute;inset:-8px;border-radius:50%;border:3px dashed var(--cc);filter:drop-shadow(0 0 6px var(--cc));animation:uspin 5s linear infinite}
+.uno-n{position:absolute;right:-9px;bottom:-5px;min-width:23px;height:23px;padding:0 5px;border-radius:999px;background:#1a0505;color:#fff;font:400 13px/23px 'Lilita One',var(--display);box-shadow:0 0 0 2px #fff}
+.uno-fan{display:flex;justify-content:center;height:36px;margin-bottom:-4px}
+.uno-fan>div{margin:0 -7px;transform:rotate(calc(var(--j) * 9deg)) translateY(calc(var(--j) * var(--j) * 1.2px));transform-origin:50% 130%}
+.uno-tag{font:400 15px/1 'Lilita One',var(--display);color:#ffd21f;-webkit-text-stroke:1.2px #1a0505;paint-order:stroke fill;animation:upulse 1s ease-in-out infinite}
+.uno-catch{border:0;border-radius:999px;padding:6px 11px;background:#ffd21f;color:#1a0505;font:400 13px/1 'Lilita One',var(--display);box-shadow:0 3px 0 #8a5a00;animation:upulse .8s ease-in-out infinite}
+
+.uno-pit{position:absolute;left:50%;top:60%;transform:translate(-50%,-50%);width:270px;height:270px;display:flex;align-items:center;justify-content:center;gap:26px}
+.uno-ring{position:absolute;inset:0;width:100%;height:100%;color:var(--cc);fill:none;stroke:currentColor;stroke-width:5;stroke-linecap:round;filter:drop-shadow(0 0 6px var(--cc));animation:uspin 16s linear infinite}
+.uno-pit .uc{--pw:88px}
+.uno-deck{position:relative;z-index:1}
+.uno-deck .uc{box-shadow:inset 0 0 0 calc(var(--pw)*.055) #fbf8f0,3px 3px 0 -1px #fbf8f0,4px 4px 0 -1px #1a0505,7px 7px 0 -2px #fbf8f0,8px 8px 0 -2px #1a0505,0 12px 24px rgba(0,0,0,.4)}
+.uno-left{position:absolute;left:50%;top:calc(100% + 8px);transform:translateX(-50%);font-size:12px;font-weight:600;color:var(--muted);white-space:nowrap}
+.upile{display:grid;z-index:1;filter:drop-shadow(0 0 18px var(--cc))}
+.upile>div{grid-area:1/1}
+.uno-color{position:absolute;left:50%;bottom:-4px;transform:translateX(-50%);display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:999px;background:rgba(0,0,0,.35);color:#fff;font:400 14px/1.2 'Lilita One',var(--display);z-index:2;white-space:nowrap}
+.uno-color::before{content:"";width:12px;height:12px;border-radius:50%;background:var(--cc);box-shadow:0 0 0 2px #fff}
+
+.uno-say{display:grid;justify-items:center;gap:2px;text-align:center;padding:6px 0 0;min-height:64px}
+.uno-say b{font:400 clamp(24px,3.4vw,34px)/1 'Lilita One',var(--display);text-shadow:0 3px 0 rgba(0,0,0,.25)}
+.uno-say span{font-size:13px;color:var(--muted)}
+.is-flip.light .uno-say b{text-shadow:none}
+
+.uno-me{--hw:96px;position:sticky;bottom:0;z-index:6;padding:0 0 calc(10px + env(safe-area-inset-bottom,0px))}
+.uno-hand{display:flex;justify-content:center;align-items:flex-end;min-height:calc(var(--hw) * 1.48 + 46px);padding:34px 40px 0}
+.uno-slot{--step:min(5deg,calc(70deg / var(--n)));margin:0 calc(-1 * clamp(8px,calc((var(--n) - 5) * 4.5px + 8px),60px));transform:translateY(calc(var(--i) * var(--i) * 2.2px)) rotate(calc(var(--i) * var(--step)));transform-origin:50% 150%;transition:translate .18s cubic-bezier(.2,.9,.25,1)}
+.uno-slot .uc{--pw:var(--hw)}
+.uno-slot.ok{translate:0 -20px;cursor:pointer}
+.uno-slot.ok .uc{box-shadow:inset 0 0 0 calc(var(--pw)*.055) #fbf8f0,0 0 0 3px #ffd21f,0 0 24px rgba(255,210,31,.65)}
+.uno-slot.ok .uc.dark{box-shadow:inset 0 0 0 calc(var(--pw)*.055) #0d0d10,0 0 0 3px #ff4fa3,0 0 24px rgba(255,79,163,.6)}
+.uno-slot.ok:hover,.uno-slot.ok:focus-within{translate:0 -38px;z-index:9}
+.uno-slot.no .uc{filter:brightness(.6) saturate(.7)}
+.uno-dock{display:flex;align-items:center;gap:14px;flex-wrap:wrap;justify-content:center;margin-top:4px}
+.uno-me-who{display:flex;align-items:center;gap:8px;margin-right:auto}
+.uno-me-who b{font:400 18px 'Lilita One',var(--display)}
+.uno-me-who small{color:var(--muted)}
+.uno-hint{font-weight:600}
+.uno-btn{border:0;border-radius:999px;padding:10px 24px;background:#fff;color:#1a0505;font:400 19px/1 'Lilita One',var(--display);box-shadow:0 4px 0 #1a0505}
+.uno-btn:active{translate:0 2px;box-shadow:0 2px 0 #1a0505}
+.uno-call{width:86px;height:86px;margin-left:auto;flex:none;border-radius:50%;border:0;background:radial-gradient(circle at 35% 30%,#ff5a45,#d3150f 60%,#8a0805);color:#ffd21f;font:400 27px/1 'Lilita One',var(--display);-webkit-text-stroke:1.5px #1a0505;paint-order:stroke fill;box-shadow:0 0 0 4px #fff,0 7px 0 4px #1a0505;transform:rotate(-8deg)}
+.uno-call:disabled{opacity:.5;filter:saturate(.4)}
+.uno-call.urgent{animation:upulse .7s ease-in-out infinite}
+.uno-call.on{background:radial-gradient(circle at 35% 30%,#ffe066,#ffc400);color:#d3150f}
+.is-flip.dark .uno-call{background:radial-gradient(circle at 35% 30%,#ff7cc0,#e0438c 60%,#7a1650);box-shadow:0 0 0 4px #1a0530,0 0 24px #ff4fa3}
+@keyframes uspin{to{transform:rotate(360deg)}}
+@keyframes upulse{50%{scale:1.1}}
+
 .ucolors{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
-.ucol{display:grid;gap:4px;padding:22px 10px;border-radius:16px;border:0;background:var(--uc);color:#fff;font:800 22px var(--display);text-shadow:0 1px 3px rgba(0,0,0,.55);box-shadow:inset 0 0 0 3px rgba(255,255,255,.35);cursor:pointer;transition:transform .15s}
+.ucol{display:grid;gap:4px;padding:24px 10px;border-radius:18px;border:0;background:var(--uc);color:#fff;font:400 26px 'Lilita One',var(--display);-webkit-text-stroke:1px rgba(0,0,0,.6);paint-order:stroke fill;box-shadow:inset 0 0 0 4px rgba(255,255,255,.4),0 5px 0 rgba(0,0,0,.35);cursor:pointer;transition:transform .15s}
 .ucol:hover{transform:translateY(-2px)}
-.ucol small{font:600 12px var(--body)}
-.game.uno-dark{background:radial-gradient(120% 70% at 50% 0%,#2b1036,#0a0710 70%)}
-@media (max-width:640px){
-  .uc{--pw:58px}
-  .rtable .uc{--pw:70px}
-  .uno-hand .rslot+.rslot{margin-left:-18px}
+.ucol small{font:600 12px var(--body);-webkit-text-stroke:0}
+
+@media (max-width:700px){
+  .uno-table{height:330px}
+  .uno-seat{width:86px}
+  .uno-seat b{font-size:13px;max-width:86px}
+  .uno-who .av{width:34px;height:34px;font-size:15px}
+  .uno-fan{height:26px}
+  .uc.mini{--pw:17px}
+  .uno-pit{width:200px;height:200px;gap:16px;top:62%}
+  .uno-pit .uc{--pw:64px}
+  .uno-me{--hw:68px}
+  .uno-hand{padding:28px 16px 24px}
+  .uno-call{width:66px;height:66px;font-size:21px}
+  .uno-bar{gap:12px}
 }
+@media (prefers-reduced-motion:reduce){
+  .uno-ring,.uno-call.urgent,.uno-tag,.uno-catch,.uno-seat.up .uno-who::after,.uno-table.flipping{animation:none}
+}
+
+/* ---------- face-down and empty playing-card spots (Solitaire, Mafia) ---------- */
+.pc.down{background:repeating-linear-gradient(45deg,#7a1d1d 0 6px,#6a1717 6px 12px);box-shadow:0 0 0 1px rgba(0,0,0,.4),0 4px 12px rgba(0,0,0,.35),inset 0 0 0 calc(var(--pw)*.06) #f3e6c4}
+.pc.slot{background:transparent;box-shadow:inset 0 0 0 2px rgba(233,220,190,.16);display:grid;place-items:center;color:rgba(233,220,190,.3);font:800 calc(var(--pw)*.3)/1 var(--display)}
+.pc.sel{box-shadow:0 0 0 3px var(--brass),0 8px 18px rgba(0,0,0,.45)}
+
+/* ---------- Mafia ----------
+   1920s noir: Art Deco Limelight titles and gold rules, a city skyline that turns from moonlit
+   indigo to a dusty dawn, players around a green baize card table, and your role kept in a
+   manila case file. The memorable thing is the sky changing with the night and day. */
+body[data-game="mafia"]{background:#0b0f24}
+[data-game="mafia"] .hero h1,[data-game="mafia"] .sheet h2,[data-game="mafia"] #banner .bt,[data-game="mafia"] .curtain h2{font-family:'Limelight',var(--display);font-weight:400;letter-spacing:.02em}
+[data-game="mafia"] .hero h1 em{color:#d6b46a}
+[data-game="mafia"] #banner .bt{color:#f1e1b0;text-shadow:0 0 28px rgba(192,23,47,.7),0 4px 0 #5c0a16}
+[data-game="mafia"] .btn.gold{border-radius:3px;background:#d6b46a;color:#1a1208;box-shadow:0 0 0 2px #0b0f24,0 0 0 3px #d6b46a}
+[data-game="mafia"] .curtain{background:radial-gradient(circle at 50% 30%,#1f2a5c,#0b0f24 70%)}
+.mf-room{--gold:#d6b46a;--blood:#c0172f;--text:#f1e9d6;--muted:#a9a5b8;color:var(--text)}
+.mf-room.night{background:radial-gradient(90% 60% at 50% 72%,#1a2047,#0b0f24 70%)}
+.mf-room.day{background:radial-gradient(90% 60% at 50% 72%,#3a2516,#1b120c 70%)}
+.mf-bar{display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding:16px 0 12px}
+.mf-logo{font:400 30px/1 'Limelight',var(--display);letter-spacing:.08em;color:var(--gold);text-shadow:0 0 18px rgba(214,180,106,.35)}
+.mf-stage{font:400 15px/1 'Limelight',var(--display);letter-spacing:.04em;color:#1a1208;background:var(--gold);padding:8px 18px;clip-path:polygon(8px 0,calc(100% - 8px) 0,100% 50%,calc(100% - 8px) 100%,8px 100%,0 50%)}
+.mf-alive{font-size:13px;color:var(--muted)}
+.mf-room .tool{border-radius:3px;border-color:rgba(214,180,106,.35);color:var(--gold)}
+
+.mf-scene{position:relative;height:clamp(170px,26vh,236px);overflow:hidden;border:1px solid rgba(214,180,106,.4);box-shadow:0 0 0 5px #0b0f24,0 0 0 6px rgba(214,180,106,.25)}
+.night .mf-scene{background:
+  radial-gradient(1.5px 1.5px at 8% 22%,#fff,transparent),radial-gradient(1px 1px at 22% 12%,#fff,transparent),radial-gradient(1.5px 1.5px at 34% 30%,#fff,transparent),
+  radial-gradient(1px 1px at 47% 9%,#fff,transparent),radial-gradient(1.5px 1.5px at 58% 26%,#fff,transparent),radial-gradient(1px 1px at 69% 14%,#fff,transparent),
+  radial-gradient(1px 1px at 91% 30%,#fff,transparent),radial-gradient(1.5px 1.5px at 96% 10%,#fff,transparent),
+  linear-gradient(#070a22,#1b2560 70%,#39397a)}
+.day .mf-scene{background:linear-gradient(#f7c983,#f29d5c 55%,#c9563c)}
+.mf-orb{position:absolute;border-radius:50%;width:72px;height:72px;right:11%;top:16%;background:radial-gradient(circle at 36% 34%,#fffbe9,#e9dcb5 60%,#bba97f);box-shadow:0 0 50px 12px rgba(243,231,201,.3)}
+.day .mf-orb{right:auto;left:62%;top:34%;width:96px;height:96px;background:radial-gradient(circle,#fff6d0,#ffd27a 55%,#f3963c);box-shadow:0 0 80px 34px rgba(255,190,90,.45)}
+.mf-city{position:absolute;left:0;bottom:0;width:100%;height:56%}
+.mf-city .b{fill:#060818}
+.mf-city .w{fill:#ffd36b}
+.day .mf-city .b{fill:#3b1e18}
+.day .mf-city .w{fill:#000;opacity:.22}
+.mf-narr{position:absolute;left:26px;top:20px;max-width:min(560px,72%);z-index:2}
+.mf-narr h1{font:400 clamp(30px,5vw,54px)/1 'Limelight',var(--display);color:#f8eed4;text-shadow:0 2px 14px rgba(0,0,0,.55)}
+.mf-narr p{width:fit-content;margin:8px 0 0;padding:3px 9px;font-size:14px;color:#f8eed4;background:rgba(6,8,24,.55)}
+.day .mf-narr h1{color:#2a140c;text-shadow:0 1px 0 rgba(255,255,255,.3)}
+
+.mf-table{position:relative;height:clamp(360px,48vh,460px);margin:22px 0 8px}
+.mf-felt{position:absolute;left:16%;right:16%;top:15%;bottom:15%;border-radius:50%;display:grid;place-items:center;text-align:center;padding:24px;
+  background:radial-gradient(closest-side,#22744b,#145034 78%,#0e3a25);box-shadow:0 0 0 10px #5a3420,0 0 0 12px #2b170d,0 0 0 13px rgba(214,180,106,.45),0 30px 60px rgba(0,0,0,.6),inset 0 0 44px rgba(0,0,0,.45)}
+.mf-felt span{font:400 18px/1.3 'Limelight',var(--display);color:#eadfbe;max-width:24ch}
+.mf-seat{position:absolute;transform:translate(-50%,-50%);width:112px;display:grid;justify-items:center;gap:3px;padding:4px;background:none;border:0;color:var(--text);text-align:center}
+.mf-seat:disabled{opacity:1;cursor:default}
+.mf-tok{position:relative;width:62px;height:62px;border-radius:50%;display:grid;place-items:center;background:radial-gradient(circle at 40% 35%,#2b2f4f,#11142b);box-shadow:0 0 0 2px var(--gold),0 8px 18px rgba(0,0,0,.5);transition:transform .15s}
+.day .mf-tok{background:radial-gradient(circle at 40% 35%,#5a3a26,#2b1a10)}
+.mf-tok .av{width:44px;height:44px;font-size:19px;position:relative;z-index:1}
+.mf-peek{position:absolute;right:-20px;top:-14px;transform:rotate(14deg)}
+.mf-peek .pc{--pw:30px}
+.mf-seat b{max-width:112px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px;display:flex;align-items:center;gap:4px}
+.mf-seat small{font-size:11px;letter-spacing:.04em;color:var(--gold)}
+.mf-seat.me b::after{content:"(you)";font-weight:500;color:var(--muted)}
+.mf-seat.tap{cursor:pointer}
+.mf-seat.tap .mf-tok{box-shadow:0 0 0 2px var(--gold),0 0 0 7px rgba(214,180,106,.16),0 8px 18px rgba(0,0,0,.5)}
+.mf-seat.tap:hover .mf-tok{transform:scale(1.07)}
+.mf-seat.sel .mf-tok{box-shadow:0 0 0 3px var(--blood),0 0 26px rgba(192,23,47,.75)}
+.mf-mark{position:absolute;inset:0;z-index:2;display:grid;place-items:center;font:700 40px/1 var(--body);font-style:normal;color:var(--blood);text-shadow:0 0 8px #000;pointer-events:none}
+.mf-seat.dead .mf-tok{filter:grayscale(1) brightness(.55);box-shadow:0 0 0 2px #444}
+.mf-seat.dead b{text-decoration:line-through;color:var(--muted)}
+.mf-seat.dead small{color:#e2566b}
+.mf-votes{display:flex;gap:3px;flex-wrap:wrap;justify-content:center;max-width:90px}
+.mf-votes i{width:9px;height:9px;border-radius:50%;background:var(--blood);box-shadow:0 0 6px var(--blood)}
+
+.mf-dossier{position:relative;display:grid;grid-template-columns:auto minmax(0,1fr);gap:26px;align-items:center;margin:18px 0 28px;padding:22px 24px;border-radius:3px;
+  background:linear-gradient(178deg,#f0e4c6,#e1cfa3);color:#2a1d10;box-shadow:0 18px 40px rgba(0,0,0,.5)}
+.mf-dossier::before{content:"";position:absolute;left:26px;top:-13px;width:150px;height:14px;border-radius:6px 6px 0 0;background:#f0e4c6}
+.mf-dossier.town{grid-template-columns:minmax(0,1fr)}
+.mf-dossier.dead{filter:grayscale(.75)}
+.mf-who{font-size:12px;font-weight:600;color:#6b5634}
+.mf-info{display:grid;gap:8px;min-width:0}
+.mf-info h2{font:400 34px/1 'Limelight',var(--display);color:#2a1d10}
+.mf-dossier.mafia .mf-info h2{color:#a3122a}
+.mf-info p{margin:0;max-width:62ch;color:#3e2e1b}
+.mf-note{font-weight:600}
+.mf-checks{margin:0;padding-left:18px;color:#3e2e1b}
+.mf-dossier .bad{color:#a3122a}
+.mf-dossier .good{color:#1d6b3e}
+.mf-acts{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:6px}
+.mf-acts .hint{margin-right:auto;font-weight:600;color:#3e2e1b}
+.mf-btn{min-height:42px;padding:11px 20px;border:0;border-radius:3px;background:#1a1208;color:#f1e1b0;font:400 15px/1 'Limelight',var(--display);letter-spacing:.04em;box-shadow:0 3px 0 #000}
+.mf-btn.red{background:#a3122a;color:#fff;box-shadow:0 3px 0 #4d0812}
+.mf-btn.ghost{background:transparent;color:#2a1d10;box-shadow:inset 0 0 0 2px #2a1d10}
+.mf-btn:active:not(:disabled){translate:0 2px}
+.mf-flip{width:100px;aspect-ratio:5/7;perspective:900px}
+.mf-flip[data-do]{cursor:pointer}
+.mf-in{position:relative;width:100%;height:100%;transform-style:preserve-3d}
+.mf-flip.open .mf-in{transform:rotateY(180deg)}
+.mf-flip.open .mf-in[style]{animation:mfopen .7s cubic-bezier(.3,.7,.3,1) both}
+.mf-flip:not(.open) .mf-in[style]{animation:mfclose .7s cubic-bezier(.3,.7,.3,1) both}
+@keyframes mfopen{from{transform:rotateY(0)}to{transform:rotateY(180deg)}}
+@keyframes mfclose{from{transform:rotateY(180deg)}to{transform:rotateY(0)}}
+.mf-face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden}
+.mf-face.front{transform:rotateY(180deg)}
+.mf-face .pc{--pw:100px;box-shadow:0 10px 24px rgba(0,0,0,.35)}
+@media (max-width:640px){
+  .mf-table{height:330px}
+  .mf-felt{left:20%;right:20%}
+  .mf-felt span{font-size:13px}
+  .mf-seat{width:84px}
+  .mf-seat b{font-size:12px;max-width:84px}
+  .mf-tok{width:46px;height:46px}
+  .mf-tok .av{width:34px;height:34px;font-size:15px}
+  .mf-mark{font-size:30px}
+  .mf-dossier{grid-template-columns:minmax(0,1fr);justify-items:start}
+  .mf-narr{left:16px;top:14px}
+}
+@media (prefers-reduced-motion:reduce){ .mf-in[style]{animation:none!important} }
+
+/* ---------- Solitaire ----------
+   The classic card-room table: green baize under a lamp, navy lattice card backs, serif card
+   faces, and a quiet toolbar along the bottom edge. The memorable thing is the win cascade. */
+body[data-game="solitaire"]{background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.09'/%3E%3C/svg%3E"),radial-gradient(120% 90% at 50% 28%,#2b8c53 0,#1b6b3c 42%,#0b3a20 100%) fixed;background-color:#0b3a20}
+[data-game="solitaire"] .hero h1,[data-game="solitaire"] .sheet h2,[data-game="solitaire"] #banner .bt{font-family:'Libre Baskerville',Georgia,serif;font-weight:700;letter-spacing:-.02em}
+[data-game="solitaire"] .hero h1 em{font-style:italic;color:#f3e6c4}
+[data-game="solitaire"] #banner .bt{color:#fdfaf2;text-shadow:0 4px 18px rgba(0,0,0,.45)}
+.sol-room{--text:#fdfaf2}
+.sol{--sw:min(104px,calc((100vw - 32px - (var(--n) - 1) * 10px) / var(--n)))}
+.sol .pc{--pw:var(--sw);border-radius:calc(var(--pw) * .08);box-shadow:0 0 0 1px rgba(0,0,0,.22),0 2px 5px rgba(0,0,0,.28)}
+.sol .pc .pr{font:700 calc(var(--pw) * .22)/.95 'Libre Baskerville',Georgia,serif;letter-spacing:-.03em}
+.sol .pc .pbig{left:50%;right:auto;top:60%;bottom:auto;transform:translate(-50%,-50%);font-size:calc(var(--pw) * .58)}
+.sol .pc.red{color:#c0272d}
+.sol .pc.down{background:repeating-linear-gradient(45deg,transparent 0 6px,rgba(214,180,106,.4) 6px 7px),repeating-linear-gradient(-45deg,transparent 0 6px,rgba(214,180,106,.4) 6px 7px),linear-gradient(#22397e,#15265a);
+  box-shadow:inset 0 0 0 calc(var(--pw) * .05) #fdfaf2,0 0 0 1px rgba(0,0,0,.35),0 2px 5px rgba(0,0,0,.3)}
+.sol .pc.slot{background:rgba(0,0,0,.1);box-shadow:inset 0 0 0 2px rgba(255,255,255,.22);color:rgba(255,255,255,.3);font:400 calc(var(--pw) * .3)/1 'Libre Baskerville',serif}
+.sol .pc.sel{box-shadow:0 0 0 3px #ffd75e,0 0 18px rgba(255,215,94,.6)}
+.sol .pc[data-do]{touch-action:none}
+.sol [data-do]{cursor:pointer}
+.sol-bar{display:flex;align-items:center;gap:20px;flex-wrap:wrap;padding:16px 0 8px}
+.sol-logo{font:italic 700 28px/1 'Libre Baskerville',Georgia,serif;color:#fdfaf2;text-shadow:0 2px 8px rgba(0,0,0,.3)}
+.sol-tabs{display:flex;gap:3px;flex-wrap:wrap;padding:4px;border-radius:12px;background:rgba(0,0,0,.2)}
+.sol-tabs button{display:grid;padding:6px 12px;border:0;border-radius:9px;background:transparent;color:rgba(253,250,242,.78);font-weight:600;font-size:13px;line-height:1.15;text-align:left}
+.sol-tabs button small{font-weight:500;font-size:11px;opacity:.75}
+.sol-tabs button:hover{background:rgba(255,255,255,.09)}
+.sol-tabs button.on{background:#fdfaf2;color:#0b3a20}
+.sol-row{display:grid;grid-template-columns:repeat(var(--n),var(--sw));gap:10px;justify-content:center;padding:10px 0}
+.sol-tab{align-items:start;padding-bottom:110px;min-height:52vh}
+.sol-slot{position:relative;min-width:0}
+.sol-waste{display:flex}
+.sol-waste .pc+.pc{margin-left:calc(var(--sw) * -.72)}
+.sol-col{display:flex;flex-direction:column;min-height:calc(var(--sw) * 1.4)}
+.sol-col .pc+.pc{margin-top:calc(var(--sw) * -1.02)}
+.sol-col .pc.down+.pc{margin-top:calc(var(--sw) * -1.2)}
+.sol-n{position:absolute;right:8%;bottom:5%;padding:2px 6px;border-radius:5px;background:rgba(0,0,0,.45);color:#fdfaf2;font:700 calc(var(--sw) * .16)/1.2 var(--body)}
+.sol-dock{position:fixed;left:0;right:0;bottom:0;z-index:20;display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap;
+  padding:16px max(16px,env(safe-area-inset-left,0px)) calc(10px + env(safe-area-inset-bottom,0px));background:linear-gradient(transparent,rgba(4,28,15,.92) 45%)}
+.sol-dock button{min-height:38px;padding:8px 14px;border:0;border-radius:8px;background:rgba(253,250,242,.13);color:#fdfaf2;font-weight:600;font-size:14px}
+.sol-dock button:hover:not(:disabled){background:rgba(253,250,242,.24)}
+.sol-stat{display:inline-grid;justify-items:center;padding:0 10px;font-size:11px;line-height:1.15;color:rgba(253,250,242,.7)}
+.sol-stat b{font:700 16px 'Libre Baskerville',Georgia,serif;color:#fdfaf2;font-variant-numeric:tabular-nums}
+.sol-gap{width:24px}
+.sol-ghost{position:fixed;z-index:80;pointer-events:none;display:flex;flex-direction:column;filter:drop-shadow(0 16px 18px rgba(0,0,0,.45))}
+.sol-ghost .pc+.pc{margin-top:calc(var(--sw) * -1.02)}
+.sol-cascade{position:fixed;inset:0;z-index:75;width:100%;height:100%;cursor:pointer}
+.sol-pick{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.sol-pick .btn{display:grid;gap:2px;justify-items:start;text-align:left}
+.sol-pick small{font-weight:500;color:var(--muted);font-size:12px}
+@media (max-width:640px){
+  .sol{--sw:calc((100vw - 32px - (var(--n) - 1) * 4px) / var(--n))}
+  .sol-row{gap:4px}
+  .sol-tabs small{display:none}
+  .sol-stat{padding:0 4px}
+  .sol-gap{display:none}
+}
+
+/* ---------- per-game sheets and pass screens ---------- */
+[data-game^="uno"] .sheet{background:linear-gradient(180deg,#b5141b,#6d080d);border-color:rgba(255,210,31,.5);border-radius:28px}
+[data-game="unoflip"] .sheet{background:linear-gradient(180deg,#3a0f5e,#14051f);border-color:rgba(255,79,163,.5)}
+[data-game^="uno"] .curtain{background:radial-gradient(circle at 50% 40%,#e3261c,#6d080d 70%)}
+[data-game="unoflip"] .curtain{background:radial-gradient(circle at 50% 40%,#5b1a8c,#14051f 70%)}
+[data-game="mafia"] .sheet{background:linear-gradient(180deg,#151c45,#0b0f24);border-color:rgba(214,180,106,.55);border-radius:4px}
+[data-game="solitaire"] .sheet{background:linear-gradient(180deg,#1b6b3c,#0b3a20);border-color:rgba(253,250,242,.35);border-radius:14px}
+
+/* =====================================================================
+   PER-GAME LOOKS for the original five. Each game re-tints the shared
+   tokens (--display, --brass, --panel, --line…) and adds one signature:
+   Tambola's marigold garland, Rummy's velvet oval table, Andar Bahar's
+   striped casino chips, Least Count's chalkboard, Dealmaker's street map.
+   ===================================================================== */
+/* only Dealmaker keeps the log sidebar column */
+[data-game]:not([data-game="dealmaker"]) .game{grid-template-columns:minmax(0,1fr)}
+
+/* ---------- Tambola: a festive housie night ---------- */
+body[data-game="tambola"]{--ink:#22041a;--display:'Baloo 2',var(--body);--brass:#ffb627;--brass-deep:#d97706;--panel:rgba(74,8,56,.62);--line:rgba(255,182,39,.22);--muted:#dcb1cd;--text:#fff4e6;
+  background:radial-gradient(60% 40% at 15% 0%,rgba(255,182,39,.2),transparent),radial-gradient(120% 90% at 50% 30%,#7d1459 0,#4a0b38 45%,#22041a 100%) fixed;background-color:#22041a}
+[data-game="tambola"] h1,[data-game="tambola"] h2,[data-game="tambola"] h3,[data-game="tambola"] .brand{font-weight:800;letter-spacing:-.01em}
+[data-game="tambola"] .hero h1{line-height:.95}
+[data-game="tambola"] .btn.gold{background:linear-gradient(180deg,#ffc94d,#f59e0b);color:#3b0a2c;box-shadow:0 4px 0 #a85d00}
+/* the toran: marigolds and mango leaves strung across the top */
+[data-game="tambola"] .game{padding-top:34px}
+[data-game="tambola"] .game::before{content:"";position:fixed;left:0;right:0;top:0;height:46px;z-index:40;pointer-events:none;
+  background:
+    radial-gradient(circle at 18px 15px,#ffe066 0 4px,#ffb627 5px 9px,#f08a00 10px 12px,transparent 13px) 0 0/36px 30px repeat-x,
+    conic-gradient(from 150deg at 50% 0,#2f9e44 0 60deg,transparent 0) 0 24px/36px 22px repeat-x,
+    linear-gradient(#5b1747,#5b1747) 0 14px/100% 2px no-repeat}
+[data-game="tambola"] .top{top:34px}
+[data-game="tambola"] .ball{position:relative;--bc:#e0218a;color:#2a0820;font-weight:800;
+  background:radial-gradient(circle at 50% 50%,#fff 0 47%,var(--bc) 48% 100%);box-shadow:inset -12px -18px 30px rgba(0,0,0,.3),inset 8px 10px 20px rgba(255,255,255,.35),0 18px 40px rgba(0,0,0,.5)}
+[data-game="tambola"] .ball::after{content:"";position:absolute;left:22%;top:8%;width:38%;height:24%;border-radius:50%;background:linear-gradient(rgba(255,255,255,.75),rgba(255,255,255,0));transform:rotate(-20deg)}
+[data-game="tambola"] .ball.idle{--bc:#7a3b68;color:rgba(42,8,32,.35)}
+[data-game="tambola"] .callname{color:var(--brass);font-size:22px}
+[data-game="tambola"] .mball{--bc:#e0218a;color:#2a0820;background:radial-gradient(circle,#fff 0 45%,var(--bc) 47%);box-shadow:inset -3px -4px 6px rgba(0,0,0,.25)}
+[data-game="tambola"] .b9{font-family:var(--display);font-weight:700;color:#c58cb3;background:rgba(255,255,255,.05);border-radius:50%}
+[data-game="tambola"] .b9.on{--bc:#e0218a;background:radial-gradient(circle,#fff 0 44%,var(--bc) 46%);color:#2a0820}
+[data-game="tambola"] .b9.last{box-shadow:0 0 0 3px #ffe066,0 0 18px #ffb627}
+[data-game="tambola"] .tkt{background:#fff;color:#3b0a2c;border-radius:6px;padding:0 0 10px;overflow:hidden;box-shadow:0 14px 30px rgba(0,0,0,.45),inset 0 0 0 2px #e0218a}
+[data-game="tambola"] .tkt-h{padding:7px 10px;margin-bottom:8px;background:#e0218a;color:#fff;font:800 13px/1 var(--display);letter-spacing:.06em}
+[data-game="tambola"] .tgrid{gap:0;margin:0 10px;border:1.5px solid #e0218a}
+[data-game="tambola"] .tc{border-radius:0;box-shadow:inset 0 0 0 .75px rgba(224,33,138,.45);color:#3b0a2c;font-weight:800}
+[data-game="tambola"] .tc.blank{background:repeating-linear-gradient(45deg,#fde3f1 0 4px,#fff 4px 8px)}
+[data-game="tambola"] .tc.on::after{background:rgba(255,160,20,.78);inset:12%}
+[data-game="tambola"] .tc.hint{box-shadow:inset 0 0 0 3px #ffb627}
+[data-game="tambola"] .plist li{border-radius:999px;padding:8px 8px 8px 16px}
+[data-game="tambola"] .plist li.won{background:linear-gradient(90deg,rgba(255,182,39,.28),rgba(255,182,39,.06))}
+
+/* ---------- Rummy: maroon velvet card room ---------- */
+body[data-game="rummy"]{--ink:#260309;--display:'Marcellus',Georgia,serif;--brass:#d9b25a;--brass-deep:#a88430;--panel:rgba(38,4,11,.62);--line:rgba(217,178,90,.24);--muted:#cfa7ad;--text:#fbefe4;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.1'/%3E%3C/svg%3E"),radial-gradient(120% 90% at 50% 30%,#8d1b2e 0,#5c0d1c 45%,#260309 100%) fixed;background-color:#260309}
+[data-game="rummy"] h1,[data-game="rummy"] h2,[data-game="rummy"] h3,[data-game="rummy"] .brand,[data-game="rummy"] .status .big{font-weight:400;letter-spacing:.01em}
+[data-game="rummy"] .btn.gold{background:linear-gradient(180deg,#f0d38a,#c99a3e);color:#2c0a10}
+[data-game="rummy"] .opp,[data-game="rummy"] .mine{border-color:rgba(217,178,90,.38);box-shadow:inset 0 0 0 4px rgba(0,0,0,.18),inset 0 0 0 5px rgba(217,178,90,.14)}
+[data-game="rummy"] .rtable{max-width:880px;margin:10px auto 16px;padding:26px 44px;border-radius:999px;
+  background:radial-gradient(closest-side,#8a1d30,#5a0c1a 85%);box-shadow:0 0 0 7px #3a1a0c,0 0 0 9px #d9b25a,0 0 0 10px #3a1a0c,0 26px 50px rgba(0,0,0,.55),inset 0 0 40px rgba(0,0,0,.4)}
+[data-game="rummy"] .rtable .status{background:transparent;border:0;padding:6px}
+[data-game="rummy"] .rtable .pile{color:#e9c9cf}
+[data-game="rummy"] .rg{background:rgba(0,0,0,.24);border:1px solid rgba(217,178,90,.16);border-radius:10px;padding:10px 12px}
+[data-game="rummy"] .rg.k-pure{border-color:#3fbf7f;box-shadow:0 0 20px rgba(63,191,127,.22),inset 0 0 0 1px rgba(63,191,127,.3)}
+[data-game="rummy"] .rg.k-seq,[data-game="rummy"] .rg.k-set{border-color:#d9b25a;box-shadow:inset 0 0 0 1px rgba(217,178,90,.25)}
+[data-game="rummy"] .rl{width:fit-content;padding:3px 10px;border-radius:3px;background:rgba(0,0,0,.3);font:400 13px/1.2 var(--display);letter-spacing:.04em;text-transform:none}
+[data-game="rummy"] .rl.ok{background:#d9b25a;color:#2c0a10}
+[data-game="rummy"] .rl.pure{background:#2e9e66;color:#fff}
+[data-game="rummy"] .rl.ok::before{content:"✓"}
+[data-game="rummy"] .rg.newg{border:1px dashed rgba(217,178,90,.35)}
+
+/* ---------- Andar Bahar: live casino felt ---------- */
+body[data-game="andarbahar"]{--ink:#06173d;--display:'Cinzel',Georgia,serif;--brass:#e6c35c;--brass-deep:#b8902c;--panel:rgba(4,16,46,.62);--line:rgba(230,195,92,.22);--muted:#a7b6d8;--text:#f5f1e6;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.08'/%3E%3C/svg%3E"),radial-gradient(120% 90% at 50% 22%,#1f55b8 0,#0e3178 45%,#06173d 100%) fixed;background-color:#06173d}
+[data-game="andarbahar"] h1,[data-game="andarbahar"] h2,[data-game="andarbahar"] .brand{font-weight:800;letter-spacing:.03em}
+[data-game="andarbahar"] .btn.gold{background:linear-gradient(180deg,#f3d77e,#c9a23e);color:#08183a}
+[data-game="andarbahar"] .ab-table{padding:26px 30px 52px;border-radius:28px 28px 160px 160px/28px 28px 70px 70px;background:radial-gradient(90% 120% at 50% 0%,#2a64cf,#103a8a 70%);border:2px solid var(--brass);
+  box-shadow:inset 0 0 0 10px rgba(0,0,0,.12),inset 0 0 0 11px rgba(230,195,92,.45),0 30px 60px rgba(0,0,0,.5)}
+[data-game="andarbahar"] .ab-joker .eyebrow{font-family:var(--display);letter-spacing:.2em}
+[data-game="andarbahar"] .ab-joker .pc,[data-game="andarbahar"] .ab-joker .card{box-shadow:0 0 0 3px var(--brass),0 0 0 8px rgba(230,195,92,.2),0 16px 34px rgba(0,0,0,.5)}
+[data-game="andarbahar"] .ab-row{border:2px solid rgba(230,195,92,.6);border-radius:10px;background:rgba(200,16,46,.22)}
+[data-game="andarbahar"] .ab-row+.ab-row{background:rgba(255,255,255,.07)}
+[data-game="andarbahar"] .ab-row.win{border-color:#ffe28a;background:rgba(230,195,92,.2);box-shadow:0 0 30px rgba(230,195,92,.45)}
+[data-game="andarbahar"] .ab-label b{font:800 30px/1 var(--display);letter-spacing:.08em;text-transform:uppercase;color:var(--brass)}
+[data-game="andarbahar"] .ab-hist :is(.andar,.bahar){box-shadow:0 0 0 2px rgba(255,255,255,.6)}
+[data-game="andarbahar"] .ab-hist .andar{background:#c8102e;color:#fff}
+[data-game="andarbahar"] .ab-hist .bahar{background:#f5f1e6;color:#0e3178}
+/* striped casino chips, coloured by value; the last one is "All in" */
+[data-game="andarbahar"] .chipbtn{--cc:#0ea5e9;width:48px;height:48px;min-width:0;padding:0;border:0;border-radius:50%;color:#fff;font:700 11px/1 var(--body);text-shadow:0 1px 2px rgba(0,0,0,.7);
+  background:radial-gradient(circle,var(--cc) 0 50%,rgba(255,255,255,.85) 51% 54%,transparent 55%),repeating-conic-gradient(var(--cc) 0 24deg,#fff 24deg 36deg);box-shadow:0 3px 0 rgba(0,0,0,.4),inset 0 0 0 2px rgba(0,0,0,.2);transition:transform .15s}
+[data-game="andarbahar"] .chipbtn[data-v="50"]{--cc:#dc2626}
+[data-game="andarbahar"] .chipbtn[data-v="100"]{--cc:#16a34a}
+[data-game="andarbahar"] .chipbtn[data-v="250"]{--cc:#1f1f24}
+[data-game="andarbahar"] .chipbtn[data-v="500"]{--cc:#7c3aed}
+[data-game="andarbahar"] .chipbtn:last-child{--cc:#b8860b;font-size:9px}
+[data-game="andarbahar"] .chipbtn:hover{transform:translateY(-2px)}
+[data-game="andarbahar"] .chipbtn.on{transform:translateY(-5px);box-shadow:0 0 0 3px var(--brass),0 8px 14px rgba(0,0,0,.5)}
+
+/* ---------- Least Count: wood table and a chalkboard ---------- */
+body[data-game="leastcount"]{--ink:#3d2414;--display:'Kalam',cursive;--brass:#f4d35e;--brass-deep:#c9a227;--panel:rgba(28,16,8,.6);--line:rgba(255,236,200,.16);--muted:#d2bd9f;--text:#fdf5e6;
+  background:linear-gradient(90deg,rgba(0,0,0,.35) 0 2px,transparent 2px) 0 0/190px 100%,repeating-linear-gradient(90deg,rgba(0,0,0,.06) 0 1px,transparent 1px 7px),linear-gradient(90deg,#5d3a22,#4b2d19 30%,#63412a 60%,#4e301c) 0 0/570px 100%;background-color:#4b2d19;background-attachment:fixed}
+[data-game="leastcount"] h1,[data-game="leastcount"] h2,[data-game="leastcount"] .brand,[data-game="leastcount"] .status .big{font-weight:700;letter-spacing:0}
+[data-game="leastcount"] .btn.gold{background:linear-gradient(180deg,#f8e08a,#d9b43a);color:#2b1a0a}
+[data-game="leastcount"] .opps{gap:0;padding:12px 6px;border:12px solid #8a5a32;border-radius:4px;
+  background:radial-gradient(80% 120% at 30% 20%,rgba(255,255,255,.07),transparent 60%),#26312b;box-shadow:inset 0 0 30px rgba(0,0,0,.5),0 0 0 2px #5a3720,0 16px 30px rgba(0,0,0,.45)}
+[data-game="leastcount"] .opp{background:transparent;border:0;border-radius:0;border-right:2px dashed rgba(255,255,255,.16);box-shadow:none;padding:6px 16px}
+[data-game="leastcount"] .opp:last-child{border-right:0}
+[data-game="leastcount"] .opp.is-turn{box-shadow:none}
+[data-game="leastcount"] .opp.is-turn b{text-decoration:underline wavy rgba(244,211,94,.7);text-underline-offset:5px}
+[data-game="leastcount"] .opp b,[data-game="leastcount"] .opp .num{font-family:var(--display);color:#f5f1e8}
+[data-game="leastcount"] .opp b{font-size:20px;font-weight:700}
+[data-game="leastcount"] .opp .stat .num{font-size:30px;font-weight:700}
+.lc-bar{display:block;height:5px;border-radius:3px;background:linear-gradient(90deg,rgba(245,241,232,.85) var(--p),rgba(245,241,232,.12) var(--p));filter:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='r'%3E%3CfeTurbulence baseFrequency='.9' numOctaves='1'/%3E%3CfeDisplacementMap in='SourceGraphic' scale='2'/%3E%3C/filter%3E%3C/svg%3E#r")}
+[data-game="leastcount"] .rtable{margin:14px auto;padding:22px 28px;border-radius:18px;background:radial-gradient(closest-side,#226b45,#16532f);box-shadow:inset 0 0 0 3px #16532f,inset 0 0 0 5px rgba(255,255,255,.25),0 18px 36px rgba(0,0,0,.45);max-width:900px}
+[data-game="leastcount"] .rtable .status{background:rgba(0,0,0,.2);border-color:rgba(255,255,255,.12)}
+[data-game="leastcount"] .mine{background:rgba(30,17,8,.72);border-color:rgba(255,236,200,.2)}
+[data-game="leastcount"] .mine-head b{font:700 20px var(--display)}
+
+/* ---------- Dealmaker: the original club felt, with a street map ---------- */
+body[data-game="dealmaker"]{background:
+  linear-gradient(rgba(228,188,108,.07) 2px,transparent 2px) 0 0/360px 360px,linear-gradient(90deg,rgba(228,188,108,.07) 2px,transparent 2px) 0 0/360px 360px,
+  linear-gradient(rgba(228,188,108,.035) 1px,transparent 1px) 0 0/90px 90px,linear-gradient(90deg,rgba(228,188,108,.035) 1px,transparent 1px) 0 0/90px 90px,
+  radial-gradient(120% 80% at 50% 18%,var(--felt-hi) 0%,var(--felt) 45%,var(--ink) 100%) fixed;background-color:var(--ink)}
+[data-game="dealmaker"] .top .brand{padding:7px 12px;border:2px solid var(--brass);border-radius:4px;box-shadow:inset 0 0 0 3px var(--ink),inset 0 0 0 4px rgba(228,188,108,.45);font-size:20px}
+
+[data-game="tambola"] .top,[data-game="rummy"] .top,[data-game="andarbahar"] .top,[data-game="leastcount"] .top{background:linear-gradient(var(--ink),color-mix(in srgb,var(--ink) 85%,transparent) 70%,transparent)}
+[data-game="tambola"] .board90{max-width:640px;margin:0 auto}
+/* Dealmaker: the ten property-set colours run under the header like the bands on title deeds */
+[data-game="dealmaker"] .top::after{content:"";position:absolute;left:0;right:0;bottom:0;height:4px;border-radius:2px;
+  background:linear-gradient(90deg,#8a5a3b 0 10%,#8fcbe8 0 20%,#d24b93 0 30%,#f08a24 0 40%,#d93a30 0 50%,#f2cb2f 0 60%,#1e9a58 0 70%,#2747a3 0 80%,#2a2a2e 0 90%,#a7d6b6 0)}

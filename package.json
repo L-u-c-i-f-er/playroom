@@ -1,14 +1,14 @@
 {
   "name": "playroom",
   "version": "1.0.0",
-  "description": "Dealmaker, Tambola, Rummy, Andar Bahar, Least Count, UNO and UNO Flip to play with friends online or on one device.",
+  "description": "Dealmaker, Tambola, Rummy, Andar Bahar, Least Count, UNO, UNO Flip, Mafia and Solitaire to play with friends online or on one device.",
   "private": true,
   "type": "module",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "test": "node test/dealmaker.test.cjs && node test/games.test.cjs && node test/cardgames.test.cjs && node test/uno.test.cjs"
+    "test": "node test/dealmaker.test.cjs && node test/games.test.cjs && node test/cardgames.test.cjs && node test/uno.test.cjs && node test/mafia.test.cjs && node test/solitaire.test.cjs"
   },
   "engines": {
     "node": ">=18.11"

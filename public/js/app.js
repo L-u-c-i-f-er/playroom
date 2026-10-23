@@ -142,6 +142,10 @@ const GAMES = [
    tags:['2–10 players', 'First to 500', 'Online', 'Pass & play'], art:() => ENG.uno.art()},
   {id:'unoflip', name:'UNO Flip', blurb:'Two-sided UNO. One Flip card turns everything to the Dark Side: Draw Five, Skip Everyone, Wild Draw Color.',
    tags:['2–10 players', 'Light & Dark sides', 'Online', 'Pass & play'], art:() => ENG.unoflip.art()},
+  {id:'mafia', name:'Mafia', blurb:'Draw an Ace and you’re Mafia. Secret picks by night, accusations and a vote by day. The page is the moderator.',
+   tags:['4–15 players', 'Social deduction', 'Online', 'Pass & play'], art:() => MAF.art()},
+  {id:'solitaire', name:'Solitaire', blurb:'Klondike, FreeCell and Spider for one. Unlimited undo, and your game saves itself.',
+   tags:['1 player', 'Klondike', 'FreeCell', 'Spider'], art:() => SOL.art()},
 ];
 // Each game plugs in here: rules engine (newGame/apply/needs) plus its home and table views.
 const ENG = {dealmaker:{name:'Dealmaker', min:2, max:5, newGame, apply, needs, home:() => vHome(), view:s => vGame(s)}};
@@ -585,6 +589,7 @@ function render(){
   if (mode === 'local' && G && G.phase !== 'lobby'){ const nd = ENG[GID].needs?.(G); if (nd?.length) me = nd[0]; }
   const s = G && viewState();
   const focusId = document.activeElement?.id, selStart = document.activeElement?.selectionStart;
+  document.body.dataset.game = screen === 'hub' ? '' : GID;   // lets each game theme the page behind it
   app.innerHTML = screen === 'hub' ? vHub() : screen === 'home' || !s ? ENG[GID].home() : s.phase === 'lobby' ? vLobby(s) : ENG[GID].view(s);
   if (ui.modal === 'rules' && screen !== 'game') app.insertAdjacentHTML('beforeend', (ENG[GID].rules || vRules)());
   if (focusId){ const f = document.getElementById(focusId); if (f){ f.focus(); try { f.setSelectionRange(selStart, selStart); } catch {} } }

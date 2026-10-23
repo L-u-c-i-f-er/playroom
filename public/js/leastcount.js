@@ -171,6 +171,7 @@ const LC = (() => {
       <section class="opps">${opps.map(p => `<article class="opp ${p.id === cur.id && s.phase === 'play' ? 'is-turn' : ''}" data-pid="${esc(p.id)}">
         <div class="opp-head">${avatar(s, p)}<div class="opp-name"><b>${esc(p.name)}</b><small><span class="dot ${!on || on.has(p.id) ? 'on' : ''}"></span>${p.out ? 'Out' : `<span class="backs">${'<i></i>'.repeat(Math.min(p.hand.length, 8))}</span>&nbsp;${p.hand.length} cards`}</small></div>
         <div class="stat"><span class="num">${s.totals[p.id] || 0}</span><span>of ${s.cfg.limit}</span></div></div>
+        <span class="lc-bar" style="--p:${Math.min(100, (s.totals[p.id] || 0) / s.cfg.limit * 100)}%" aria-hidden="true"></span>
         ${p.out ? '<span class="chipst">Out</span>' : ''}</article>`).join('')}</section>
       <section class="rtable">
         <div class="pile" id="deck"><div class="card sm back ${pick ? 'canpick' : ''}" ${pick ? 'data-do="lcpick" data-from="deck" role="button" tabindex="0" aria-label="Draw from the closed deck"' : ''}></div><span class="num">${s.deck.length} left</span></div>

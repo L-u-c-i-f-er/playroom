@@ -216,7 +216,7 @@ function makeUno(flip){
     ['No stacking', 'You can’t answer a Draw Two or Wild Draw Four with another one: Mattel’s official rules don’t allow stacking.'],
     ['Scoring', 'Numbers: face value. Skip, Reverse, Draw Two: 20. Wild and Wild Draw Four: 50.'],
   ];
-  const title = flip ? 'UNO <em>Flip</em>' : '<em>UNO</em>';
+  const title = `<span class="uno-logo big"><b>UNO</b>${flip ? '<i>FLIP</i>' : ''}</span>`;
   const rules = () => sheet(`<div class="eyebrow">How to play</div><h2>${flip ? 'UNO Flip' : 'UNO'} rules</h2><ul class="rules">${rulesList.map(([k, v]) => `<li><b>${k}</b><span>${v}</span></li>`).join('')}</ul>
     <div class="acts"><button class="btn gold" data-do="closemodal">Got it</button></div>`);
 
@@ -260,6 +260,12 @@ function makeUno(flip){
     </div>`;
   }
 
+  // Opponents sit around the top of an oval table; positions are % of the table box.
+  const seatXY = n => Array.from({length:n}, (_, i) => { const a = Math.PI * (1 + (i + 1) / (n + 1)); return [50 + 45 * Math.cos(a), 50 + 42 * Math.sin(a)]; });
+  const pt = d => { const a = d * Math.PI / 180; return `${(100 + 88 * Math.cos(a)).toFixed(1)} ${(100 + 88 * Math.sin(a)).toFixed(1)}`; };
+  const RING = [0, 120, 240].map(d => `<path d="M${pt(d)} A88 88 0 0 1 ${pt(d + 92)}" marker-end="url(#uah)"/>`).join('');
+  let lastSide = {}, flipT = 0;   // when the side changes, the table plays a flip for 900ms
+  const since = (t, ms) => { const e = Date.now() - t; return e < ms ? e : -1; };
   function view(s){
     const meP = P(s, me), cur = s.players[s.turn], actor = needs(s)[0], who = P(s, actor) || cur, myTurn = s.phase === 'play' && actor === me;
     const idx = s.players.findIndex(p => p.id === me);
@@ -269,33 +275,41 @@ function makeUno(flip){
     const da = canDraw ? 'data-do="unodraw" role="button" tabindex="0" aria-label="Draw a card"' : '';
     const deck = flip && s.deck.length ? uc(s, s.deck.at(-1), {side:1 - s.side, cls:canDraw ? 'canpick' : '', attrs:da})
       : `<div class="uc back ${canDraw ? 'canpick' : ''}" ${da}><span>UNO</span></div>`;
+    const cc = s.color != null ? UCOL[s.color].hex : (s.side ? '#f3e9ff' : '#ffffff');
+    if (lastSide.gid === s.gid && lastSide.side !== s.side) flipT = Date.now();
+    lastSide = {gid:s.gid, side:s.side};
+    const fl = since(flipT, 900), spin = (Date.now() % 16000) / 1000;
     let big, hint = '';
     if (s.phase === 'over') big = `${esc(P(s, s.winner).name)} went out`;
     else if (pd){ big = myTurn ? 'Draw or challenge' : `${esc(who.name)} is deciding`; hint = `${esc(P(s, pd.by).name)} played ${NAME[pd.v]}`; }
     else if (myTurn) big = s.step === 'drawn' ? 'Play it or keep it' : 'Your turn';
-    else big = `${esc(cur.name)} is playing`;
-    return `<div class="game ${s.side ? 'uno-dark' : ''}"><div class="main">
-      <header class="top">
-        <div class="brand">${title}</div>
-        <div class="turn">${avatar(s, who, 'sm')}<span><b>${myTurn ? 'Your' : esc(who.name) + '’s'}</b> turn</span></div>
-        <span class="sync">Round ${s.round} · ${s.cfg.target <= 1 ? 'one round' : 'to ' + s.cfg.target} · ${s.dir > 0 ? '↻ clockwise' : '↺ counter-clockwise'}</span>
-        ${flip ? `<span class="chipst ${s.side ? '' : 'good'}">${s.side ? 'Dark Side' : 'Light Side'}</span>` : ''}
+    else big = `${esc(cur.name)}’s turn`;
+    const xy = seatXY(opps.length);
+    return `<div class="game uno-room ${flip ? 'is-flip' : ''} ${s.side ? 'dark' : 'light'}"><div class="main">
+      <header class="uno-bar">
+        <div class="uno-logo" aria-label="${flip ? 'UNO Flip' : 'UNO'}"><b>UNO</b>${flip ? '<i>FLIP</i>' : ''}</div>
+        <span class="uno-meta">Round ${s.round} · ${s.cfg.target <= 1 ? 'one round' : `first to ${s.cfg.target}`}${flip ? ` · ${s.side ? 'Dark' : 'Light'} Side` : ''}</span>
         <div class="tools">${s.code ? `<span class="codechip">${esc(s.code)}</span>` : ''}<button class="tool" data-do="rules">Rules</button><button class="tool" data-do="mute">${muted ? 'Sound off' : 'Sound on'}</button><button class="tool" data-do="leave">Leave</button></div>
       </header>
-      <section class="opps">${opps.map(p => {
-        const n = p.hand.length;
-        return `<article class="opp ${p.id === actor ? 'is-turn' : ''}" data-pid="${esc(p.id)}">
-        <div class="opp-head">${avatar(s, p)}<div class="opp-name"><b>${esc(p.name)}</b><small><span class="dot ${!on || on.has(p.id) ? 'on' : ''}"></span>${flip ? '' : `<span class="backs">${'<i></i>'.repeat(Math.min(n, 8))}</span>&nbsp;`}${n} card${n === 1 ? '' : 's'}</small></div>
-        <div class="stat"><span class="num">${s.totals[p.id] || 0}</span><span>points</span></div></div>
-        ${flip && n ? `<div class="uno-peek" title="The other side of ${esc(p.name)}’s cards">${p.hand.map(id => uc(s, id, {side:1 - s.side, cls:'xs'})).join('')}</div>` : ''}
-        ${n !== 1 ? '' : !p.unoMiss ? '<span class="chipst good">UNO</span>' : meP && s.phase === 'play' ? `<button class="btn small danger" data-do="unocatch" data-id="${esc(p.id)}">No UNO call! Catch</button>` : '<span class="chipst">No UNO call</span>'}
-      </article>`; }).join('')}</section>
-      <section class="rtable">
-        <div class="pile" id="deck">${deck}<span class="num">${s.deck.length} left</span></div>
-        <div class="pile"><div class="upile">${s.pile.slice(-3).map(id => `<div style="transform:rotate(${rotOf(id)}deg)">${uc(s, id, {cid:true})}</div>`).join('')}</div>
-          ${s.color != null ? `<span class="uswatch" style="--uc:${UCOL[s.color].hex}">${UCOL[s.color].name}</span>` : '<span>Any color</span>'}</div>
-        <div class="status"><span class="big">${big}</span>${hint ? `<span class="hint">${hint}</span>` : ''}<div class="ulog">${s.log.slice(-3).map(e => `<span>${esc(e.text)}</span>`).join('')}</div></div>
+      <section class="uno-table ${fl >= 0 ? 'flipping' : ''}" style="--cc:${cc};${fl >= 0 ? `animation-delay:-${fl}ms` : ''}">
+        <div class="uno-felt"></div>
+        ${opps.map((p, i) => {
+          const n = p.hand.length, m = Math.min(n, 9);
+          const fan = flip ? p.hand.slice(0, m).map(id => uc(s, id, {side:1 - s.side, cls:'mini'})) : Array.from({length:m}, () => '<div class="uc back mini"><span></span></div>');
+          return `<div class="uno-seat ${p.id === actor ? 'up' : ''}" style="left:${xy[i][0]}%;top:${xy[i][1]}%" data-pid="${esc(p.id)}">
+            <div class="uno-fan" ${flip ? `title="The other side of ${esc(p.name)}’s cards"` : ''}>${fan.map((h, j) => `<div style="--j:${j - (m - 1) / 2}">${h}</div>`).join('')}</div>
+            <div class="uno-who">${avatar(s, p)}<span class="uno-n">${n}</span></div>
+            <b>${on && !on.has(p.id) ? '<span class="dot"></span> ' : ''}${esc(p.name)}</b><small>${s.totals[p.id] || 0} pts</small>
+            ${n !== 1 ? '' : !p.unoMiss ? '<span class="uno-tag">UNO!</span>' : meP && s.phase === 'play' ? `<button class="uno-catch" data-do="unocatch" data-id="${esc(p.id)}">Catch! No UNO</button>` : ''}
+          </div>`; }).join('')}
+        <div class="uno-pit">
+          <svg class="uno-ring" viewBox="0 0 200 200" aria-hidden="true" style="animation-delay:-${spin}s"><defs><marker id="uah" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="3.2" markerHeight="3.2" orient="auto"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker></defs><g ${s.dir < 0 ? 'transform="translate(200 0) scale(-1 1)"' : ''}>${RING}</g></svg>
+          <div class="uno-deck" id="deck">${deck}<span class="uno-left">${s.deck.length}</span></div>
+          <div class="upile">${s.pile.slice(-4).map(id => `<div style="transform:rotate(${rotOf(id) * 1.6}deg)">${uc(s, id, {cid:true})}</div>`).join('')}</div>
+          <span class="uno-color">${s.color != null ? UCOL[s.color].name : 'Any color'}</span>
+        </div>
       </section>
+      <div class="uno-say" aria-live="polite"><b>${big}</b>${hint ? `<span>${hint}</span>` : ''}<span class="uno-last">${esc(s.log.at(-1)?.text || '')}</span></div>
       ${meP ? mine(s, meP, myTurn) : '<div class="spect">You’re watching this game.</div>'}
     </div></div>${modal(s)}${curtain(s)}`;
   }
@@ -304,17 +318,18 @@ function makeUno(flip){
     const hand = [...meP.hand].sort((a, b) => key(a) - key(b)), n = hand.length;
     const act = myTurn && !s.pend;
     const ok = id => act && (s.step === 'play' || id === s.drawn) && canPlay(s, id), any = hand.some(ok);
-    const acts = [];
-    if (act && n === 2 && any) acts.push(`<button class="btn ${ui.unoArm ? 'gold' : ''}" data-do="unoarm" aria-pressed="${!!ui.unoArm}">${ui.unoArm ? 'UNO called ✓' : 'Call UNO'}</button>`);
-    if (meP.unoMiss && n === 1 && s.phase === 'play') acts.push('<button class="btn gold" data-do="unolate">Say UNO!</button>');
-    if (act && s.step === 'play') acts.push('<button class="btn" data-do="unodraw">Draw a card</button>');
-    if (act && s.step === 'drawn') acts.push('<button class="btn" data-do="unopass">Keep it</button>');
-    const hint = !act ? `${n} card${n === 1 ? '' : 's'} in hand` : s.step === 'drawn' ? `You drew ${label(face(s, s.drawn))}. Play it, or keep it and end your turn.`
-      : n === 2 && any ? 'Two cards left: call UNO before you play, or you can be caught.' : any ? 'Tap a lit card to play it, or draw.' : 'Nothing matches. Draw a card.';
-    return `<section class="mine ${myTurn ? 'is-turn' : ''}" data-pid="${esc(me)}">
-      <div class="mine-head">${avatar(s, meP)}<b>${esc(meP.name)}</b><span class="muted">(you) · ${s.totals[me] || 0} points</span></div>
-      <div class="rcards uno-hand">${hand.map(id => `<div class="rslot ${act ? ok(id) ? 'ok' : 'no' : ''}">${uc(s, id, {cid:true, attrs:ok(id) ? `data-do="unoplay" data-id="${id}" role="button" tabindex="0" aria-label="Play ${label(face(s, id))}"` : ''})}</div>`).join('')}</div>
-      <div class="ractions"><span class="hint">${hint}</span>${acts.join('')}</div>
+    const unoNow = act && n === 2 && any, late = meP.unoMiss && n === 1 && s.phase === 'play';
+    const hint = !act ? (myTurn ? '' : `${n} card${n === 1 ? '' : 's'} in your hand`) : s.step === 'drawn' ? `You drew ${label(face(s, s.drawn))}. Play it, or keep it.`
+      : unoNow ? (ui.unoArm ? 'UNO called. Now play your card.' : 'Two cards left: hit UNO before you play.') : any ? 'Tap a lit card to play it, or draw.' : 'Nothing matches. Draw a card.';
+    return `<section class="uno-me ${myTurn ? 'up' : ''}" data-pid="${esc(me)}">
+      <div class="uno-hand" style="--n:${n}">${hand.map((id, i) => `<div class="uno-slot ${act ? ok(id) ? 'ok' : 'no' : ''}" style="--i:${(i - (n - 1) / 2).toFixed(2)}">${uc(s, id, {cid:true, attrs:ok(id) ? `data-do="unoplay" data-id="${id}" role="button" tabindex="0" aria-label="Play ${label(face(s, id))}"` : ''})}</div>`).join('')}</div>
+      <div class="uno-dock">
+        <div class="uno-me-who">${avatar(s, meP)}<b>${esc(meP.name)}</b><small>${s.totals[me] || 0} pts</small></div>
+        <span class="uno-hint">${hint}</span>
+        ${act && s.step === 'play' ? '<button class="uno-btn" data-do="unodraw">Draw</button>' : ''}
+        ${act && s.step === 'drawn' ? '<button class="uno-btn" data-do="unopass">Keep it</button>' : ''}
+        <button class="uno-call ${ui.unoArm ? 'on' : ''} ${unoNow && !ui.unoArm || late ? 'urgent' : ''}" data-do="${late ? 'unolate' : 'unoarm'}" ${unoNow || late ? '' : 'disabled'} aria-pressed="${!!ui.unoArm}">UNO</button>
+      </div>
     </section>`;
   }
   function modal(s){

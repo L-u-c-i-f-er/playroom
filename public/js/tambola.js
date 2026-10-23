@@ -189,6 +189,9 @@ const TAM = (() => {
     </div>`;
   }
   const isCaller = s => s.host === me;
+  // Ball colours by tens, like the balls in a real housie machine.
+  const BC = ['#e0218a', '#f97316', '#d4a20b', '#16a34a', '#0891b2', '#4f46e5', '#9333ea', '#dc2626', '#0d9488'];
+  const bc = n => `--bc:${BC[Math.min(8, Math.floor((n - 1) / 10))]}`;
   function view(s){
     const meP = P(s, me), last = s.called.at(-1), pop = last !== shownBall;
     shownBall = last;
@@ -209,9 +212,9 @@ const TAM = (() => {
       <div class="tam-grid ${solo ? 'solo' : ''}">
         <section class="panel caller">
           <div class="eyebrow">${last ? `Number ${s.called.length}` : 'Ready'}</div>
-          <div class="ball ${pop && last ? 'pop' : ''} ${last ? '' : 'idle'}">${last ?? '?'}</div>
+          <div class="ball ${pop && last ? 'pop' : ''} ${last ? '' : 'idle'}" style="${last ? bc(last) : ''}">${last ?? '?'}</div>
           <div class="callname">${last ? esc(CALLS[last] || (last < 10 ? `Single number ${last}` : `${Math.floor(last / 10)} and ${last % 10}`)) : (caller ? 'Call the first number' : 'Waiting for the caller')}</div>
-          <div class="recent">${s.called.slice(-7, -1).reverse().map(n => `<span class="mball">${n}</span>`).join('')}</div>
+          <div class="recent">${s.called.slice(-7, -1).reverse().map(n => `<span class="mball" style="${bc(n)}">${n}</span>`).join('')}</div>
           ${caller && s.phase === 'play' ? `<div class="ctrls">
             <button class="btn gold" data-do="tcall" ${s.called.length >= 90 ? 'disabled' : ''}>Call next number</button>
             <div class="row"><button class="btn small ${s.auto ? 'danger' : ''}" data-do="tauto">${s.auto ? 'Pause auto-call' : 'Start auto-call'}</button>
@@ -234,7 +237,7 @@ const TAM = (() => {
         </section>
         <section class="panel board">
           <div class="eyebrow">Board</div>
-          <div class="board90">${Array.from({length:90}, (_, i) => i + 1).map(n => `<span class="b9 ${s.called.includes(n) ? 'on' : ''} ${n === last ? 'last' : ''}">${n}</span>`).join('')}</div>
+          <div class="board90">${Array.from({length:90}, (_, i) => i + 1).map(n => `<span class="b9 ${s.called.includes(n) ? 'on' : ''} ${n === last ? 'last' : ''}" style="${bc(n)}">${n}</span>`).join('')}</div>
         </section>
       </div>
     </div></div>${modal(s, meP)}`;
