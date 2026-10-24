@@ -87,6 +87,30 @@ for (let i = 0; i < 3000; i++){
   assert.strictEqual(RUM.score(s, [pure, set, loose]), 6 + 33, 'pure but one sequence: all but the pure run');
   assert.strictEqual(RUM.score(s, [[id(13, 0), id(13, 1), id(12, 2), id(12, 3), id(11, 0), id(11, 1), id(10, 2), id(10, 3), id(9, 0)]]), 80, 'capped at 80');
 }
+// --- Rummy pool: reaching the cap knocks you out of the next deal; the last player under the cap wins.
+{
+  const seats = ['a', 'b', 'c'].map(id => ({id, name:id.toUpperCase()}));
+  // Everyone listed drops (20 points); anyone else just draws and throws until the deal ends.
+  const play = (s, droppers) => {
+    for (let k = 0; k < 400 && s.phase === 'play'; k++){
+      const p = s.players[s.turn];
+      if (droppers.includes(p.id)) RUM.apply(s, p.id, {t:'drop'});
+      else { RUM.apply(s, p.id, {t:'draw', from:'deck'}); RUM.apply(s, p.id, {t:'discard', card:p.hand[0]}); }
+    }
+  };
+  const s = RUM.newGame(seats, {cfg:{pool:101}, totals:{a:0, b:90, c:40}});
+  assert(s.players.every(p => p.status === 'in' && p.hand.length === 13));
+  play(s, ['b', 'c']);
+  assert.strictEqual(s.phase, 'over'); assert.deepStrictEqual([s.totals.b, s.totals.c], [110, 60]); assert.strictEqual(s.champion, null);
+  const next = RUM.newGame(seats, {cfg:s.cfg, totals:s.totals, round:s.round});
+  assert.strictEqual(P(next, 'b').status, 'elim'); assert.strictEqual(P(next, 'b').hand.length, 0, 'out of the pool: no cards');
+  assert.notStrictEqual(next.players[next.turn].id, 'b');
+  assert(RUM.apply(next, 'b', {t:'drop'}), 'an eliminated player can’t act');
+  const last = RUM.newGame(seats, {cfg:{pool:101}, totals:{a:0, b:110, c:95}});
+  play(last, ['c']);
+  assert.strictEqual(last.champion, 'a', 'c reaches 115, a is the last one under 101');
+  assert.strictEqual(RUM.newGame(seats, {}).cfg.pool, 0, 'points rummy by default: no cap');
+}
 // --- Rummy random games: card conservation, legal flow, every deal finishes.
 let deals = 0, declared = 0;
 for (let g = 0; g < 300; g++){

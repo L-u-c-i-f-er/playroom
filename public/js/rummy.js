@@ -1,5 +1,7 @@
 /* =====================================================================
    RUMMY — 13-card Indian Rummy (points, one deal at a time, running totals).
+   Pool rummy: with a pool cap (101, 201 or any number the host sets) a player
+   whose total reaches the cap is out, and the last player left wins.
    Cards 0..103 are two 52-card decks, 104 and 105 are printed jokers.
    ===================================================================== */
 const RUM = (() => {
@@ -73,15 +75,17 @@ const RUM = (() => {
     return [...gs, hand.filter(id => isWild(s, id))].filter(g => g.length);
   }
 
+  const cfg = {pool:0};   // 0: points rummy with no cap; otherwise out at that total
   function newGame(seats, extra = {}){
-    const round = (extra.round || 0) + 1;
-    const s = {...extra, phase:'play', gid:rid(8), round, totals:{...(extra.totals || {})}, ack:extra.ack || {},
-      players:seats.map(p => ({id:p.id, name:p.name, hand:[], status:'in', drew:false, score:null, shown:false, groups:null})),
+    const round = (extra.round || 0) + 1, c = {...cfg, ...(extra.cfg || {})}, totals = {...(extra.totals || {})};
+    const s = {...extra, cfg:c, phase:'play', gid:rid(8), round, totals, ack:extra.ack || {}, champion:null,
+      players:seats.map(p => ({id:p.id, name:p.name, hand:[], status:c.pool && (totals[p.id] || 0) >= c.pool ? 'elim' : 'in', drew:false, score:null, shown:false, groups:null})),
       deck:shuffle([...Array(106).keys()]), pile:[], step:'draw', declarer:null, log:[], ln:0};
-    for (let i = 0; i < 13; i++) s.players.forEach(p => p.hand.push(s.deck.pop()));
+    const live = s.players.filter(p => p.status === 'in');
+    for (let i = 0; i < 13; i++) live.forEach(p => p.hand.push(s.deck.pop()));
     s.joker = s.deck.pop(); s.jr = s.joker >= 104 ? 1 : card(s.joker).rank;
     s.pile.push(s.deck.pop());
-    s.turn = (round - 1) % s.players.length;
+    s.turn = s.players.indexOf(live[(round - 1) % live.length]);
     log(s, `Deal ${round}. Wild joker: every ${RANK[s.jr]}${s.joker >= 104 ? ' (a printed joker was cut, so aces are wild)' : ''}`, 'turn');
     log(s, `${s.players[s.turn].name} starts`, 'turn');
     return s;
@@ -90,11 +94,21 @@ const RUM = (() => {
     s.phase = 'over';
     const w = P(s, s.declarer);
     for (const p of s.players){
+      if (p.status === 'elim') continue;
       if (p.score == null){ p.groups = auto(s, p.hand); p.score = score(s, p.groups); }
       s.totals[p.id] = (s.totals[p.id] || 0) + p.score;
     }
-    const won = s.players.reduce((a, p) => a + (p === w ? 0 : p.score), 0);
+    const won = s.players.reduce((a, p) => a + (p === w ? 0 : p.score || 0), 0);
     log(s, `${w.name} wins deal ${s.round} and collects ${won} points`, 'win', {title:`${w.name} wins!`, sub:`Deal ${s.round} · +${won} points`});
+    const cap = s.cfg?.pool;
+    if (!cap) return;
+    for (const p of s.players) if (p.status !== 'elim' && s.totals[p.id] >= cap) log(s, `${p.name} reached ${s.totals[p.id]} and is out of the pool`);
+    const left = s.players.filter(p => (s.totals[p.id] || 0) < cap);
+    if (left.length <= 1){
+      const c = left[0] || [...s.players].sort((a, b) => s.totals[a.id] - s.totals[b.id])[0];
+      s.champion = c.id;
+      log(s, `${c.name} wins the pool`, 'win', {title:`${c.name} wins the pool!`, sub:`Last player under ${cap}`});
+    }
   }
   function advance(s){
     s.step = 'draw';
@@ -231,6 +245,7 @@ const RUM = (() => {
           <div class="eyebrow">One device</div><h2>Pass &amp; play</h2>
           <p>Hand the device around. Each hand stays hidden behind a pass screen.</p>
           <div class="names">${locals}</div>
+          <div class="field"><label for="rcaph">Pool: out at</label><div class="row">${capInput('rcaph', 'pool', cfg.pool, [0, 101, 201], 0, 1000)}<span class="muted">points · 0 for no limit</span></div></div>
           <div class="row">${form.locals.length < 6 ? '<button class="btn small" data-do="ladd6">Add player</button>' : ''}<button class="btn gold" data-do="rlocal" style="margin-left:auto">Start game</button></div>
           ${saved?.phase && saved.phase !== 'over' ? `<button class="btn small" data-do="rresume">Resume saved game (${saved.players.map(p => esc(p.name)).join(', ')})</button>` : ''}
         </div>
@@ -249,7 +264,7 @@ const RUM = (() => {
     const opps = idx < 0 ? s.players : [...s.players.slice(idx + 1), ...s.players.slice(0, idx)];
     const top = s.pile.at(-1), canPick = myTurn && s.step === 'draw';
     const live = mode === 'local' ? null : live$();
-    const status = p => p.status === 'drop' ? '<span class="chipst">Dropped</span>' : p.status === 'out' ? '<span class="chipst">Wrong declare</span>' : p.id === s.declarer ? '<span class="chipst good">Declared</span>' : s.phase === 'show' && !p.shown ? '<span class="chipst">Showing cards</span>' : '';
+    const status = p => p.status === 'elim' ? '<span class="chipst">Out of the pool</span>' : p.status === 'drop' ? '<span class="chipst">Dropped</span>' : p.status === 'out' ? '<span class="chipst">Wrong declare</span>' : p.id === s.declarer ? '<span class="chipst good">Declared</span>' : s.phase === 'show' && !p.shown ? '<span class="chipst">Showing cards</span>' : '';
     let big, hint = '';
     const nd = needs(s);
     if (s.phase === 'over') big = `${esc(P(s, s.declarer).name)} wins the deal`;
@@ -260,7 +275,7 @@ const RUM = (() => {
       <header class="top">
         <div class="brand">Rum<em>my</em></div>
         <div class="turn">${avatar(s, cur, 'sm')}<span><b>${myTurn ? 'Your' : esc(cur.name) + '’s'}</b> turn</span></div>
-        <span class="sync">Deal ${s.round}</span>
+        <span class="sync">Deal ${s.round}${s.cfg?.pool ? ` · pool ${s.cfg.pool}` : ''}</span>
         <div class="tools">
           ${s.code ? `<span class="codechip">${esc(s.code)}</span>` : ''}
           <button class="tool" data-do="rules">Rules</button>
@@ -270,7 +285,7 @@ const RUM = (() => {
       </header>
       <section class="opps">${opps.map(p => `<article class="opp ${p.id === cur.id && s.phase === 'play' ? 'is-turn' : ''}" data-pid="${esc(p.id)}">
         <div class="opp-head">${avatar(s, p)}<div class="opp-name"><b>${esc(p.name)}</b><small><span class="dot ${!live || live.has(p.id) ? 'on' : ''}"></span><span class="backs">${'<i></i>'.repeat(Math.min(p.hand.length, 8))}</span>&nbsp;${p.hand.length} cards</small></div>
-        <div class="stat"><span class="num">${s.totals[p.id] || 0}</span><span>total pts</span></div></div>${status(p)}</article>`).join('')}</section>
+        <div class="stat"><span class="num">${s.totals[p.id] || 0}</span><span>${s.cfg?.pool ? `of ${s.cfg.pool}` : 'total pts'}</span></div></div>${status(p)}</article>`).join('')}</section>
       <section class="rtable">
         <div class="pile" id="deck"><div class="card sm back ${canPick ? 'canpick' : ''}" ${canPick ? 'data-do="rdraw" data-from="deck" role="button" tabindex="0" aria-label="Draw from the closed deck"' : ''}></div><span class="num">${s.deck.length} left</span></div>
         <div class="pile">${top != null ? pc(s, top, {cid:true, cls:canPick && !isWild(s, top) ? 'canpick' : '', attrs:canPick && !isWild(s, top) ? 'data-do="rdraw" data-from="pile" role="button" tabindex="0" aria-label="Pick the open card"' : ''}) : '<div class="card sm ghost"></div>'}<span>Open pile</span></div>
@@ -294,7 +309,7 @@ const RUM = (() => {
     if (myTurn && s.step === 'discard') acts.push(`<button class="btn gold" data-do="rdiscard" ${sel.length === 1 ? '' : 'disabled'}>Discard</button>`, `<button class="btn" data-do="rdeclare" ${sel.length === 1 ? '' : 'disabled'}>Declare</button>`);
     if (showing) acts.push(`<button class="btn gold" data-do="rshow">Show my cards (${now} pts)</button>`);
     if (s.phase === 'show' && mode === 'host') acts.push('<button class="btn small" data-do="rforce">Score everyone now</button>');
-    const hint = !active ? (meP.status === 'drop' ? `You dropped this deal (${meP.score} points).` : meP.status === 'out' ? 'Wrong declaration. You’re out of this deal (80 points).' : '')
+    const hint = !active ? (meP.status === 'elim' ? 'You’re out of the pool. Watch the rest of the game.' : meP.status === 'drop' ? `You dropped this deal (${meP.score} points).` : meP.status === 'out' ? 'Wrong declaration. You’re out of this deal (80 points).' : '')
       : `${j.pure ? `${j.pure} pure` : 'No pure sequence yet'} · ${j.seqs} sequence${j.seqs === 1 ? '' : 's'} · ${now} points if the deal ended now`;
     return `<section class="mine ${myTurn ? 'is-turn' : ''}" data-pid="${esc(me)}">
       <div class="mine-head">${avatar(s, meP)}<b>${esc(meP.name)}</b><span class="muted">(you) · ${s.totals[me] || 0} total pts</span></div>
@@ -311,10 +326,11 @@ const RUM = (() => {
     if (s.phase === 'over'){
       const w = P(s, s.declarer), next = mode === 'local' || mode === 'host';
       const rows = [...s.players].sort((a, b) => a.score - b.score);
-      return sheet(`<div class="eyebrow">Deal ${s.round} result</div><h2>${w.id === me && mode !== 'local' ? 'You win the deal!' : `${esc(w.name)} wins the deal`}</h2>
+      const champ = s.champion && P(s, s.champion);
+      return sheet(`<div class="eyebrow">Deal ${s.round} result${s.cfg?.pool ? ` · pool ${s.cfg.pool}` : ''}</div><h2>${champ ? `${esc(champ.name)} wins the pool!` : w.id === me && mode !== 'local' ? 'You win the deal!' : `${esc(w.name)} wins the deal`}</h2>
         <div class="rres">${rows.map(p => `<div class="rr ${p.id === w.id ? 'win' : ''}"><div style="min-width:0"><b>${esc(p.name)}</b> ${p.status !== 'in' ? `<span class="muted">${p.status === 'drop' ? 'dropped' : 'wrong declare'}</span>` : ''}${p.groups ? miniGroups(s, p.groups) : ''}</div>
-          <span class="num">${p.id === w.id ? '0' : '+' + p.score}</span><span class="num muted">${s.totals[p.id] || 0} total</span></div>`).join('')}</div>
-        <div class="acts"><button class="btn" data-do="leave">Back to menu</button>${next ? '<button class="btn gold" data-do="again">Next deal</button>' : '<span class="muted">The host deals the next round.</span>'}</div>`);
+          <span class="num">${p.status === 'elim' ? 'out' : p.id === w.id ? '0' : '+' + p.score}</span><span class="num muted">${s.totals[p.id] || 0}${s.cfg?.pool ? ` of ${s.cfg.pool}` : ' total'}</span></div>`).join('')}</div>
+        <div class="acts"><button class="btn" data-do="leave">Back to menu</button>${next ? (champ ? '<button class="btn gold" data-do="rnew">New pool</button>' : '<button class="btn gold" data-do="again">Next deal</button>') : '<span class="muted">The host deals the next round.</span>'}</div>`);
     }
     if (ui.rdecl != null && meP){
       const gs = arrFor(s, me).map(g => g.filter(id => id !== ui.rdecl)).filter(g => g.length), j = judge(s, gs);
@@ -358,6 +374,7 @@ const RUM = (() => {
     rdropgo:() => send({t:'drop'}),
     rshow:() => send({t:'show', groups:arrFor(viewState(), me)}),
     rforce:() => send({t:'force'}),
+    rnew:() => { G = {...G, totals:{}, round:0}; arr = {}; rematch(); },
     ladd6:() => { if (form.locals.length < 6) form.locals.push(''); render(); },
     rlocal:() => {
       const names = form.locals.map(n => n.trim()).filter(Boolean);
@@ -379,6 +396,9 @@ const RUM = (() => {
     moveSel(viewState(), z.dataset.rdrop === 'new' ? 'new' : +z.dataset.rdrop, ids);
   });
 
-  return {name:'Rummy', min:2, max:6, newGame, apply, needs, home, view, rules, art, classify, judge, score, auto, bySuit, card, isWild, pc};
+  return {name:'Rummy', min:2, max:6, cfg, newGame, apply, needs, home, view, rules, art, classify, judge, score, auto, bySuit, card, isWild, pc,
+    lobby:(s, host) => host
+      ? `<div class="row"><label class="muted" for="rcap">Pool: out at</label>${capInput('rcap', 'pool', s.cfg?.pool ?? cfg.pool, [0, 101, 201], 0, 1000)}<span class="muted">points · 0 for no limit</span></div>`
+      : `<p class="muted">${s.cfg?.pool ? `Pool rummy: out at ${s.cfg.pool} points` : 'Points rummy: no limit'}</p>`};
 })();
 ENG.rummy = RUM;

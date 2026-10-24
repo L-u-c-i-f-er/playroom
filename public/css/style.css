@@ -1064,3 +1064,105 @@ body[data-game="unonm"]{background:repeating-linear-gradient(-45deg,rgba(224,27,
 .tpz{padding:7px 13px;border-radius:999px;border:1px dashed var(--line);background:transparent;color:var(--muted);font-weight:600;font-size:13px}
 .tpz:hover{color:var(--text);border-color:var(--brass)}
 .tpz.on{border:1px solid transparent;background:var(--brass);color:#3b0a2c}
+
+/* Points caps and paid entry (lobby) */
+.cap-in{width:96px;padding:7px 10px;border-radius:10px;border:1px solid var(--line);background:rgba(0,0,0,.3);color:var(--text);font:600 15px var(--body)}
+.cap-in:focus{border-color:var(--brass);outline:none}
+.payp{display:grid;gap:12px;padding:14px;border-radius:14px;border:1px dashed var(--brass);background:rgba(0,0,0,.18)}
+.payp .row{gap:10px}
+.pay-f label{display:grid;gap:4px;font-size:12px;font-weight:600;color:var(--muted)}
+.pay-f input{min-width:0;width:100%;padding:8px 10px;border-radius:10px;border:1px solid var(--line);background:rgba(0,0,0,.3);color:var(--text);font:500 15px var(--body)}
+.pay-f label:first-child input{width:110px}
+.payqr{width:110px;border-radius:10px;background:#fff;padding:6px}
+.payqr.big{width:min(260px,100%);justify-self:center}
+.pay-pot{margin:0;color:var(--muted)}
+.pay-pot b{color:var(--brass);font-size:18px}
+.pay-ok{margin:0;font-weight:600;color:var(--good)}
+.seats .pay-mark.on{background:var(--good);border-color:transparent;color:#06240f}
+.seats .pay-mark.said{border-color:var(--brass);color:var(--brass)}
+.seats .tag.paid{color:var(--good)}
+
+/* ---------- Teen Patti ----------
+   A royal card room: deep aubergine under a gold jali lattice, Rozha One for the big moments,
+   a round cloth with a gold mandala rosette at its heart, and gold coins for the pot.
+   Every player wears Blind or Seen; the dealer gets a small gold D. */
+body[data-game="teenpatti"]{--ink:#170716;--brass:#e2b65b;--panel:rgba(40,10,38,.65);--line:rgba(226,182,91,.22);--text:#fbefe0;--muted:#cdb3c4;--display:'Rozha One',Georgia,serif;
+  background:radial-gradient(circle at 0 0,transparent 0 17px,rgba(226,182,91,.08) 18px 19px,transparent 20px) 0 0/40px 40px,
+    radial-gradient(circle at 20px 20px,transparent 0 17px,rgba(226,182,91,.08) 18px 19px,transparent 20px) 0 0/40px 40px,
+    radial-gradient(120% 90% at 50% 30%,#4a1446 0,#2a0b29 50%,#120412 100%) fixed;background-color:#120412}
+[data-game="teenpatti"] h1,[data-game="teenpatti"] h2,[data-game="teenpatti"] .sheet h2,[data-game="teenpatti"] #banner .bt,[data-game="teenpatti"] .curtain h2{font-family:'Rozha One',Georgia,serif;font-weight:400;letter-spacing:0}
+[data-game="teenpatti"] #banner .bt{color:#f5d27a;text-shadow:0 3px 0 #6b3d0a,0 0 30px rgba(226,182,91,.5)}
+[data-game="teenpatti"] .btn.gold{background:linear-gradient(180deg,#f5d27a,#c8922f);color:#2a0b29}
+[data-game="teenpatti"] .sheet{background:linear-gradient(180deg,#3a0f37,#170716);border-color:rgba(226,182,91,.5)}
+[data-game="teenpatti"] .curtain{background:radial-gradient(circle at 50% 40%,#4a1446,#170716 70%)}
+.tp-art .fi .pc{--pw:104px}
+.fan .tp-art .fi .pc{--pw:132px}
+.tp-bar{display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding:16px 0 4px}
+.tp-logo{font:400 32px/1 'Rozha One',Georgia,serif;color:#f5d27a;text-shadow:0 2px 0 #6b3d0a}
+.tp-meta{font-size:13px;color:var(--muted)}
+.tp-room .tool{border-color:rgba(226,182,91,.32);color:#e2b65b}
+.tp-table{--sx:44%;--sy:42%;position:relative;width:min(100%,1000px);aspect-ratio:1.8/1;margin:28px auto 12px}
+.tp-cloth{position:absolute;inset:9% 9%;border-radius:50%;
+  background:radial-gradient(closest-side,#7a1f3a,#5a1530 70%,#3d0e22);box-shadow:0 0 0 3px #e2b65b,0 0 0 9px #3a1205,0 0 0 11px #e2b65b,0 30px 70px rgba(0,0,0,.6),inset 0 0 50px rgba(0,0,0,.45)}
+.tp-mandala{position:absolute;left:50%;top:50%;width:min(46%,300px);aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%;opacity:.2;
+  background:radial-gradient(circle,transparent 0 22%,#e2b65b 22.5% 23.5%,transparent 24% 46%,#e2b65b 46.5% 47.5%,transparent 48% 68%,#e2b65b 68.5% 69.5%,transparent 70%),
+    repeating-conic-gradient(from 7.5deg,transparent 0 6deg,rgba(226,182,91,.9) 6deg 9deg,transparent 9deg 15deg),
+    radial-gradient(circle,#e2b65b 0 6%,transparent 6.5%);
+  -webkit-mask:radial-gradient(circle,#000 0 70%,transparent 71%);mask:radial-gradient(circle,#000 0 70%,transparent 71%)}
+.tp-center{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:2;display:grid;justify-items:center;gap:6px;text-align:center}
+.tp-pot{display:flex;align-items:center;gap:10px}
+.tp-pot b{font:400 clamp(28px,4vw,40px)/1 'Rozha One',Georgia,serif;color:#f5d27a;text-shadow:0 2px 0 #4a1a05}
+.tp-pot small{color:var(--muted);font-size:13px}
+.tp-coins{width:34px;height:30px;background:radial-gradient(ellipse 15px 6px at 50% 85%,#f5d27a 60%,#a6701f 61% 100%,transparent 101%),radial-gradient(ellipse 15px 6px at 50% 60%,#f5d27a 60%,#a6701f 61% 100%,transparent 101%),radial-gradient(ellipse 15px 6px at 50% 35%,#ffe08f 60%,#a6701f 61% 100%,transparent 101%)}
+.tp-stake{font-size:13px;color:#f1dcc4}
+.tp-stake b{color:#f5d27a}
+.tp-say{font:400 18px/1.2 'Rozha One',Georgia,serif;color:#fbefe0;max-width:30ch}
+.tp-seat{position:absolute;transform:translate(-50%,-50%);z-index:3;width:140px;display:grid;justify-items:center}
+.tp-cards{display:flex;margin-bottom:-10px;min-height:16px}
+.tp-cards .pc{--pw:34px}
+.tp-cards .pc+.pc{margin-left:-14px}
+.tp-cards .pc:first-child{transform:rotate(-8deg)}
+.tp-cards .pc:last-child{transform:rotate(8deg)}
+.tp-plate{position:relative;z-index:1;display:flex;align-items:center;gap:8px;max-width:140px;padding:5px 14px 5px 5px;border-radius:999px;background:linear-gradient(#3a1037,#1d071c);box-shadow:0 0 0 1px rgba(226,182,91,.45),0 10px 22px rgba(0,0,0,.6)}
+.tp-plate>div{display:grid;min-width:0;line-height:1.15}
+.tp-plate b{font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center;gap:4px}
+.tp-plate>div>span{font-size:13px;font-weight:600;color:#e2b65b;font-variant-numeric:tabular-nums}
+.tp-dealer{position:absolute;right:-10px;top:-8px;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font:400 12px/1 'Rozha One',serif;font-style:normal;color:#2a0b29;background:radial-gradient(circle at 35% 30%,#ffe9a8,#c8922f)}
+.tp-seat.up .tp-plate{box-shadow:0 0 0 2px #f5d27a,0 0 26px rgba(245,210,122,.6);animation:pkup 1.6s ease-in-out infinite}
+.tp-seat.gone{opacity:.45}
+.tp-seat.won .tp-plate{box-shadow:0 0 0 2px #f5d27a,0 0 36px rgba(245,210,122,.8)}
+.tp-tag{margin-top:6px;padding:2px 10px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:.05em;white-space:nowrap;background:rgba(0,0,0,.6);color:#f1dcc4}
+.tp-tag.blind{background:#1d3f6e;color:#d6e6ff}
+.tp-tag.seen{background:#e2b65b;color:#2a0b29}
+.tp-tag.allin{background:#b3122e;color:#fff}
+.tp-seat.won .tp-tag{background:linear-gradient(#f5d27a,#c8922f);color:#2a0b29;font-size:13px}
+.tp-hand{margin-top:3px;font:400 13px/1.2 'Rozha One',serif;color:#f5d27a;white-space:nowrap}
+.pc.down.tp-back{background:radial-gradient(circle,#e2b65b 0 10%,transparent 11%),repeating-conic-gradient(rgba(226,182,91,.35) 0 10deg,transparent 10deg 30deg),linear-gradient(#7a1f3a,#3d0e22);
+  box-shadow:inset 0 0 0 calc(var(--pw) * .06) #f6e7c8,0 0 0 1px rgba(0,0,0,.4),0 4px 10px rgba(0,0,0,.4)}
+.tp-dock{position:sticky;bottom:0;z-index:10;display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap;max-width:1000px;margin:0 auto 18px;
+  padding:14px 18px calc(14px + env(safe-area-inset-bottom,0px));border-radius:18px;background:linear-gradient(#2e0c2c,#170716);box-shadow:0 0 0 1px rgba(226,182,91,.3),0 20px 44px rgba(0,0,0,.6)}
+.tp-dock.turn{box-shadow:0 0 0 1px #e2b65b,0 0 30px rgba(226,182,91,.25),0 20px 44px rgba(0,0,0,.6)}
+.tp-mine{display:flex;gap:6px}
+.tp-mine .pc{--pw:64px}
+.tp-mine.seen .pc{animation:tpsee .45s cubic-bezier(.2,.8,.3,1) both}
+@keyframes tpsee{from{transform:rotateY(90deg)}}
+.tp-info{margin-right:auto;color:#f1dcc4}
+.tp-info b{font:400 19px/1.2 'Rozha One',serif;color:#f5d27a}
+.tp-acts{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.tp-btn{min-height:44px;padding:10px 18px;border-radius:10px;border:1px solid rgba(226,182,91,.4);background:linear-gradient(#3a1037,#1d071c);color:#fbefe0;font:600 15px var(--body);white-space:nowrap}
+.tp-btn:hover{border-color:#e2b65b}
+.tp-btn.gold{border:0;background:linear-gradient(#f5d27a,#c8922f);color:#2a0b29;box-shadow:0 4px 0 #7a4a12}
+.tp-btn.pack{color:#f3a3a3;border-color:rgba(243,163,163,.35)}
+.tp-btn.show{border-color:#f5d27a;color:#f5d27a}
+.tp-setup{gap:8px 10px}
+@media (max-width:700px){
+  .tp-table{--sx:36%;--sy:44%;aspect-ratio:.82;margin-bottom:34px}
+  .tp-cloth{inset:6% 10%}
+  .tp-seat{width:96px}
+  .tp-plate{max-width:96px;padding:3px 9px 3px 3px;gap:5px}
+  .tp-plate .av{width:24px;height:24px;font-size:11px}
+  .tp-plate b,.tp-plate>div>span{font-size:11px}
+  .tp-say{font-size:15px;max-width:20ch}
+  .tp-mine .pc{--pw:52px}
+}
+@media (prefers-reduced-motion:reduce){ .tp-seat.up .tp-plate,.tp-mine.seen .pc{animation:none} }

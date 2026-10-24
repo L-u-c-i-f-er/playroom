@@ -1,9 +1,9 @@
 # Playroom
 
-Card and number games to play with friends: **Dealmaker** (Monopoly Deal rules), **Tambola / Housie**, **13-card Indian Rummy**, **Andar Bahar** (play-money chips), **Least Count**, **UNO**, **UNO Flip**, **UNO No Mercy**, **Mafia** and **Poker** (Texas Hold’em, play-money chips), plus **Solitaire** (Klondike, FreeCell, Spider) to play alone.
+Card and number games to play with friends: **Dealmaker** (Monopoly Deal rules), **Tambola / Housie**, **13-card Indian Rummy**, **Andar Bahar** (play-money chips), **Least Count**, **UNO**, **UNO Flip**, **UNO No Mercy**, **Mafia**, **Poker** (Texas Hold’em, play-money chips) and **Teen Patti**, plus **Solitaire** (Klondike, FreeCell, Spider) to play alone.
 
 - **Online:** one person hosts a table and shares a 5-letter code. Friends open the site, enter the code and play from their own devices.
-- **Offline:** pass one device around (Dealmaker, Rummy, Least Count, UNO, UNO Flip, UNO No Mercy, Mafia, Poker), bet from one shared screen (Andar Bahar), or use one device as the Tambola caller while everyone else opens tickets on their phones.
+- **Offline:** pass one device around (Dealmaker, Rummy, Least Count, UNO, UNO Flip, UNO No Mercy, Mafia, Poker, Teen Patti), bet from one shared screen (Andar Bahar), or use one device as the Tambola caller while everyone else opens tickets on their phones.
 
 ## Run it on your computer
 
@@ -24,7 +24,7 @@ Friends on the same Wi-Fi can join at `http://<your-computer's-IP>:3000`.
 npm test
 ```
 
-runs the rules checks: hundreds of simulated Dealmaker, Rummy, Least Count, UNO, UNO Flip, Mafia, Poker and Solitaire games, thousands of Andar Bahar deals, plus Tambola ticket and claim checks.
+runs the rules checks: hundreds of simulated Dealmaker, Rummy, Least Count, UNO, UNO Flip, Mafia, Poker, Teen Patti and Solitaire games, thousands of Andar Bahar deals, plus Tambola ticket and claim checks.
 
 ## Deploy it
 
@@ -82,10 +82,15 @@ public/js/uno.js       UNO, UNO Flip and UNO No Mercy rules and screens (one eng
 public/js/mafia.js     Mafia roles, night and day rules and screens
 public/js/solitaire.js Klondike, FreeCell and Spider rules and screens
 public/js/poker.js     Texas Hold’em rules, hand evaluator, side pots and screens
+public/js/teenpatti.js Teen Patti rules (blind/seen, show, sideshow, pot limit) and screens
 public/js/boot.js      loaded last; draws the hub once every game has registered
 test/                  rules checks (npm test)
 ```
 
 **How online play works:** the host's browser runs the game rules and saves the whole game state to the server as the table. Other players send their moves through the live room; the host's browser checks each move, applies it and saves the new state, which the server pushes to everyone. Only the browser that created a table can save over it. The server never needs to know the rules, so adding a game is a front-end change: write a module like `tambola.js`, register it in `ENG` and `GAMES`, and add its `<script>` to `index.html` before `boot.js`.
 
-Hidden information (other players' hands) is sent to every browser at the table and hidden by the page, so this is meant for friends, not for strangers or money games.
+Hidden information (other players' hands) is sent to every browser at the table and hidden by the page, so this is meant for friends, not for strangers.
+
+**Points caps:** Least Count (out at), the UNO games (play to) and Rummy (pool: out at, 0 for points rummy) take any number the host types, in the lobby or on the pass & play panel. The choice is remembered on that device.
+
+**Paid entry:** in any online lobby the host can turn on paid entry, set an entry fee, add who to pay and upload their payment QR. Players pay outside the app and tap "I've paid"; the host marks who really has, and only paid players get a seat when the game starts. The app never handles money; the host's QR is stored with the table (as `tables/CODE-qr`).

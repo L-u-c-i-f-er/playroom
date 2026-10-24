@@ -360,6 +360,7 @@ function makeUno(kind){
           <div class="eyebrow">One device</div><h2>Pass &amp; play</h2>
           <p>Hand the device around. Each hand stays hidden behind a pass screen.</p>
           <div class="names">${locals}</div>
+          <div class="field"><label for="unocaph">Play to</label><div class="row">${capInput('unocaph', 'target', cfg.target, TARGETS.map(t => t[0]), 1, 10000)}<span class="muted">points · 1 for a single round</span></div></div>
           <div class="row">${form.locals.length < (nm ? 6 : 10) ? '<button class="btn small" data-do="ladd10">Add player</button>' : ''}<button class="btn gold" data-do="unolocal" style="margin-left:auto">Start game</button></div>
           ${saved?.phase === 'play' ? `<button class="btn small" data-do="unoresume">Resume saved game (${saved.players.map(p => esc(p.name)).join(', ')})</button>` : ''}
         </div>
@@ -497,8 +498,8 @@ function makeUno(kind){
 
   return {name:NICE, nm, min:2, max:nm ? 6 : 10, cfg, CARDS, STACK, newGame, apply, needs, home, view, rules, art, face, canPlay, legal, pts,
     lobby:(s, host) => host
-      ? `<div class="row"><label class="muted">Play to <select data-unocfg="target">${TARGETS.map(([v, t]) => `<option value="${v}" ${v === s.cfg?.target ? 'selected' : ''}>${t}</option>`).join('')}</select></label></div>`
-      : `<p class="muted">Playing to ${TARGETS.find(([v]) => v === (s.cfg?.target ?? cfg.target))?.[1]}</p>`};
+      ? `<div class="row"><label class="muted" for="unocap">Play to</label>${capInput('unocap', 'target', s.cfg?.target ?? cfg.target, TARGETS.map(t => t[0]), 1, 10000)}<span class="muted">points · 1 for a single round</span></div>`
+      : `<p class="muted">Playing ${(s.cfg?.target ?? cfg.target) <= 1 ? 'a single round' : `to ${(s.cfg?.target ?? cfg.target).toLocaleString()} points`}</p>`};
 }
 ENG.uno = makeUno('classic');
 ENG.unoflip = makeUno('flip');
@@ -533,7 +534,4 @@ Object.assign(H, {
   },
   unoresume:() => { G = store.get(GID + '-local'); if (!G) return; mode = 'local'; ui = freshUI(); seenLog = -1; screen = 'game'; render(); },
 });
-app.addEventListener('change', e => {
-  const k = e.target.dataset.unocfg;
-  if (GID.startsWith('uno') && k && mode === 'host' && G?.phase === 'lobby'){ G.cfg = {...G.cfg, [k]:+e.target.value}; G.v++; persist(); render(); }
-});
+

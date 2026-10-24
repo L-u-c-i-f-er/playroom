@@ -150,6 +150,8 @@ const GAMES = [
    tags:['1 player', 'Klondike', 'FreeCell', 'Spider'], art:() => SOL.art()},
   {id:'poker', name:'Poker', blurb:'No-limit Texas Hold’em with play-money chips. Blinds, side pots and a showdown under the lights.',
    tags:['2–9 players', 'Hold’em', 'Online', 'Pass & play'], art:() => PK.art()},
+  {id:'teenpatti', name:'Teen Patti', blurb:'Three cards, blind or seen. Chaal, sideshow, show, and a trail of aces beats everything. Play-money chips.',
+   tags:['3–8 players', 'Blind & seen', 'Online', 'Pass & play'], art:() => TP.art()},
 ];
 // Each game plugs in here: rules engine (newGame/apply/needs) plus its home and table views.
 const ENG = {dealmaker:{name:'Dealmaker', min:2, max:5, newGame, apply, needs, home:() => vHome(), view:s => vGame(s)}};
@@ -244,13 +246,70 @@ function vLobby(s){
     <div class="eyebrow">Table code</div>
     <div class="row"><div class="bigcode">${esc(s.code)}</div><button class="btn small" data-do="copy" style="margin-left:auto">Copy code</button></div>
     <p>Friends open this page, enter their name, choose <b>Join</b> and type the code.</p>
-    <ul class="seats">${s.players.map(p => `<li>${avatar(s, p)}<span class="grow">${esc(p.name)}${p.id === me ? ' (you)' : ''}</span>${p.id === s.host ? '<span class="tag">Host</span>' : ''}<span class="dot ${on.has(p.id) ? 'on' : ''}" title="${on.has(p.id) ? 'Connected' : 'Away'}"></span>${host && p.id !== me ? `<button class="tool" data-do="kick" data-id="${esc(p.id)}">Remove</button>` : ''}</li>`).join('')}</ul>
+    <ul class="seats">${s.players.map(p => `<li>${avatar(s, p)}<span class="grow">${esc(p.name)}${p.id === me ? ' (you)' : ''}</span>${p.id === s.host ? '<span class="tag">Host</span>' : ''}${payMark(s, p, host)}<span class="dot ${on.has(p.id) ? 'on' : ''}" title="${on.has(p.id) ? 'Connected' : 'Away'}"></span>${host && p.id !== me ? `<button class="tool" data-do="kick" data-id="${esc(p.id)}">Remove</button>` : ''}</li>`).join('')}</ul>
     <p class="muted">${ENG[GID].name} · ${s.players.length}/${ENG[GID].max} seats taken</p>
     ${ENG[GID].lobby ? ENG[GID].lobby(s, host) : ''}
-    ${host ? `<button class="btn gold" data-do="start" ${s.players.length < ENG[GID].min ? 'disabled' : ''}>${s.players.length < ENG[GID].min ? 'Waiting for at least one friend' : `Start with ${s.players.length} player${s.players.length > 1 ? 's' : ''}`}</button>`
-      : P(s, me) ? `<p class="note">You’re in. Waiting for ${esc(hostP?.name || 'the host')} to deal.</p>` : `<p class="note">Joining… if this takes long, check the code with the host.</p>`}
+    ${payPanel(s, host)}
+    ${host ? (n => `<button class="btn gold" data-do="start" ${n < ENG[GID].min ? 'disabled' : ''}>${n < ENG[GID].min ? (s.pay?.on ? `Mark at least ${ENG[GID].min} players paid` : 'Waiting for at least one friend') : `Start with ${n}${s.pay?.on ? ' paid' : ''} player${n > 1 ? 's' : ''}`}</button>`)(seated(s).length)
+      : P(s, me) ? (s.pay?.on && !isPaid(s, me) ? '' : `<p class="note">You’re in. Waiting for ${esc(hostP?.name || 'the host')} to deal.</p>`) : `<p class="note">Joining… if this takes long, check the code with the host.</p>`}
     <button class="btn small" data-do="leave">Leave table</button>
   </div></div>`;
+}
+
+/* ---------- paid entry ----------
+   For games played for money: the host shows an entry fee and their payment QR, players pay outside
+   the app and tap "I've paid", the host marks who really has, and only paid players get a seat.
+   The QR lives in its own small document ("tables/CODE-qr") so it isn't re-sent with every move. */
+let qrCache = {key:'', img:'', loading:''};
+const safeImg = u => typeof u === 'string' && /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(u) ? u : '';
+const isPaid = (s, id) => id === s.host || !!s.pay?.paid?.[id];
+const seated = s => s.pay?.on ? s.players.filter(p => isPaid(s, p.id)) : s.players;
+function loadQR(s){
+  const key = s.code + ':' + s.pay.qr;
+  if (qrCache.key === key || qrCache.loading === key || !net.db) return;
+  qrCache.loading = key;
+  net.db.doc(`tables/${s.code}-qr`).get().then(sn => { qrCache = {key, img:sn.exists ? safeImg(sn.data().img) : '', loading:''}; render(); }).catch(() => { qrCache.loading = ''; });
+}
+function payMark(s, p, host){
+  if (!s.pay?.on || p.id === s.host) return '';
+  const paid = isPaid(s, p.id), said = s.pay.said?.[p.id];
+  if (host) return `<button class="tool pay-mark ${paid ? 'on' : said ? 'said' : ''}" data-do="paid" data-id="${esc(p.id)}" aria-pressed="${paid}">${paid ? 'Paid ✓' : said ? 'Says paid · confirm' : 'Mark paid'}</button>`;
+  return `<span class="tag ${paid ? 'paid' : ''}">${paid ? 'Paid' : said ? 'Checking' : 'Not paid'}</span>`;
+}
+function payPanel(s, host){
+  const pay = s.pay || {};
+  if (!pay.on && !host) return '';
+  if (pay.on && pay.qr) loadQR(s);
+  const qr = pay.qr && qrCache.key === s.code + ':' + pay.qr ? qrCache.img : '', fee = +pay.fee || 0, n = seated(s).length;
+  const pot = fee ? `<p class="pay-pot">Pot <b>₹${(fee * n).toLocaleString('en-IN')}</b> · ${n} paid</p>` : '';
+  if (host) return `<div class="payp"><div class="row"><b class="grow">Paid entry</b><button class="btn small ${pay.on ? 'gold' : ''}" data-do="payon" aria-pressed="${!!pay.on}">${pay.on ? 'On' : 'Off'}</button></div>
+    ${pay.on ? `<div class="row pay-f"><label>Entry fee ₹<input type="number" id="payfee" data-pay="fee" min="0" step="1" inputmode="numeric" value="${fee || ''}" placeholder="100"></label>
+      <label class="grow">Pay to<input id="payto" data-pay="to" maxlength="40" value="${esc(pay.to || '')}" placeholder="Your name or UPI ID"></label></div>
+      <div class="row">${qr ? `<img class="payqr" src="${qr}" alt="Your payment QR">` : ''}<label class="btn small">${qr ? 'Change QR' : 'Upload payment QR'}<input type="file" accept="image/*" data-payqr hidden></label></div>
+      ${pot}<p class="muted">Players see your QR and tap “I’ve paid”. Mark them paid once the money arrives; only paid players get a seat when you start.</p>`
+    : '<p class="muted">Playing for money? Turn this on to show an entry fee and your payment QR, and mark who has paid.</p>'}</div>`;
+  const meSeat = P(s, me), paid = isPaid(s, me), said = pay.said?.[me] || ui.said;
+  return `<div class="payp guest"><div class="row"><b class="grow">Entry fee ${fee ? `₹${fee.toLocaleString('en-IN')}` : ''}</b>${pay.to ? `<span class="muted">Pay to ${esc(pay.to)}</span>` : ''}</div>
+    ${qr ? `<img class="payqr big" src="${qr}" alt="Payment QR for ${esc(pay.to || 'the host')}">` : pay.qr ? '<p class="muted">Loading the payment QR…</p>' : '<p class="muted">The host hasn’t added a QR yet. Ask them how to pay.</p>'}
+    ${pot}
+    ${!meSeat ? '' : paid ? '<p class="pay-ok">Payment confirmed. You have a seat.</p>' : said ? '<p class="note">Waiting for the host to confirm your payment.</p>' : '<button class="btn gold" data-do="paysaid">I’ve paid</button>'}
+    <p class="muted">Only players the host marks as paid get a seat when the game starts.</p></div>`;
+}
+// The host's QR: shrunk to at most 480px so it fits comfortably in a table document.
+async function uploadQR(file){
+  if (mode !== 'host' || G?.phase !== 'lobby') return;
+  if (!file || !/^image\//.test(file.type)) return toast('Pick an image of your payment QR');
+  const img = await createImageBitmap(file).catch(() => null);
+  if (!img) return toast('Couldn’t read that image');
+  const k = Math.min(1, 480 / Math.max(img.width, img.height)), c = document.createElement('canvas');
+  c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+  c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+  let url = c.toDataURL('image/png');
+  if (url.length > 200000) url = c.toDataURL('image/jpeg', .85);
+  if (url.length > 240000) return toast('That image is too large. Try a cropped screenshot of the QR');
+  try { await net.db.doc(`tables/${G.code}-qr`).set({img:url}); } catch { return toast('Couldn’t upload the QR. Check your connection and try again'); }
+  const v = Date.now(); qrCache = {key:G.code + ':' + v, img:url, loading:''};
+  G.pay = {...G.pay, qr:v}; G.v++; persist(); render();
 }
 
 function vGame(s){
@@ -587,7 +646,15 @@ function flights(s, before){
   }
   return done;
 }
+// Replacing the page can blur an input mid-edit, which fires its change handler, which renders again:
+// that nested render waits until this one is done instead of tearing the page down twice.
+let rendering = false;
 function render(){
+  if (rendering) return void queueMicrotask(render);
+  rendering = true;
+  try { renderNow(); } finally { rendering = false; }
+}
+function renderNow(){
   const before = new Map();
   if (!reduce) app.querySelectorAll('[data-cid]').forEach(el => before.set(el.dataset.cid, el.getBoundingClientRect()));
   if (mode === 'local' && G && G.phase !== 'lobby'){ const nd = ENG[GID].needs?.(G); if (nd?.length) me = nd[0]; }
@@ -654,7 +721,7 @@ const LKEY = () => GID === 'dealmaker' ? 'dm-local' : GID + '-local';
 // A fresh round with the same seats (and the table's code, settings and running totals when online).
 function rematch(){
   const seats = G.players.map(({id, name}) => ({id, name}));
-  const keep = {game:GID, cfg:G.cfg, totals:G.totals, round:G.round};
+  const keep = {game:GID, cfg:G.cfg, totals:G.totals, round:G.round, pay:G.pay};
   if (mode === 'host') Object.assign(keep, {code:G.code, host:G.host, ack:G.ack});
   if (mode === 'local' && G.host) keep.host = G.host;
   G = {...ENG[GID].newGame(seats, keep), v:(G.v || 0) + 1};
@@ -682,6 +749,7 @@ function hostTick(){
       const seat = P(G, pr.pid);
       if (!seat && pr.join === G.code && G.players.length < ENG[GID].max && !(G.kicked || []).includes(pr.pid)){ G.players.push({id:pr.pid, name}); changed = true; }
       else if (seat && seat.name !== name){ seat.name = name; changed = true; }
+      if (seat && pr.said && G.pay?.on && !G.pay.said?.[pr.pid]){ G.pay = {...G.pay, said:{...(G.pay.said || {}), [pr.pid]:true}}; changed = true; }
     }
     const a = pr.act;
     if (a && typeof a.n === 'number' && a.n > (G.ack[pr.pid] || 0)){
@@ -802,7 +870,19 @@ const H = {
   host:() => hostTable(),
   join:() => joinTable(form.code),
   rejoin:() => joinTable(store.get('dm-last')),
-  start:() => { if (mode !== 'host' || G.players.length < ENG[GID].min) return; rematch(); },
+  start:() => {
+    if (mode !== 'host' || seated(G).length < ENG[GID].min) return;
+    if (G.pay?.on) G.players = seated(G);   // unpaid players stay at the table as spectators
+    rematch();
+  },
+  payon:() => { if (mode !== 'host' || G.phase !== 'lobby') return; G.pay = {fee:0, to:'', paid:{}, said:{}, ...(G.pay || {}), on:!G.pay?.on}; G.v++; persist(); render(); },
+  paid:d => {
+    if (mode !== 'host' || G.phase !== 'lobby') return;
+    const paid = {...(G.pay?.paid || {})};
+    if (paid[d.id]) delete paid[d.id]; else paid[d.id] = true;
+    G.pay = {...G.pay, paid}; G.v++; persist(); render();
+  },
+  paysaid:() => { ui.said = true; net.room?.presence({said:true}).catch(() => toast('Connection hiccup. Try that again')); render(); },
   open:d => { if (ENG[d.game]){ GID = d.game; screen = 'home'; ui = freshUI(); dealAnim = false; render(); scrollTo(0, 0); } },
   hub:() => { screen = 'hub'; render(); scrollTo(0, 0); },
   kick:d => { if (mode !== 'host' || G.phase !== 'lobby') return; G.players = G.players.filter(p => p.id !== d.id); G.kicked = [...(G.kicked || []), d.id]; G.v++; persist(); render(); },
@@ -832,6 +912,25 @@ app.addEventListener('input', e => {
   if (t.dataset.f === 'name'){ form.name = t.value; store.set('dm-name', t.value); if (!form.locals[0]) form.locals[0] = ''; }
   if (t.dataset.f === 'code') form.code = t.value;
   if (t.dataset.local != null) form.locals[+t.dataset.local] = t.value;
+});
+app.addEventListener('change', e => {
+  const t = e.target;
+  if (t.dataset.payqr != null) return uploadQR(t.files?.[0]);
+  const k = t.dataset.pay;
+  if (k && mode === 'host' && G?.phase === 'lobby'){
+    G.pay = {...G.pay, [k]:k === 'fee' ? Math.max(0, Math.round(+t.value) || 0) : t.value.trim().slice(0, 40)};
+    G.v++; persist(); render();
+  }
+});
+// A points cap the host can type (Least Count, UNO, Rummy pool), with common values suggested. Remembered on this device.
+const capInput = (id, key, val, presets, min, max) => `<input type="number" class="cap-in" id="${id}" data-cap="${key}" value="${val}" min="${min}" max="${max}" step="1" inputmode="numeric" list="${id}-l"><datalist id="${id}-l">${presets.map(v => `<option value="${v}"></option>`).join('')}</datalist>`;
+app.addEventListener('change', e => {
+  const k = e.target.dataset.cap; if (!k || !ENG[GID]?.cfg) return;
+  const v = Math.round(+e.target.value), min = +e.target.min, max = +e.target.max;
+  if (e.target.value === '' || !(v >= min && v <= max)){ toast(`Type a number from ${min} to ${max}`); return render(); }
+  ENG[GID].cfg[k] = v; store.set(`cap-${GID}-${k}`, v);
+  if (mode === 'host' && G?.phase === 'lobby'){ G.cfg = {...G.cfg, [k]:v}; G.v++; persist(); }
+  render();
 });
 app.addEventListener('dragstart', e => { const d = e.target.closest('[data-drag]'); if (d) e.dataTransfer.setData('text/plain', d.dataset.drag); });
 app.addEventListener('dragover', e => { const z = e.target.closest('[data-drop]'); if (z){ e.preventDefault(); z.classList.add('over'); } });

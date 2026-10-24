@@ -122,7 +122,7 @@ const LC = (() => {
           <div class="eyebrow">Lowest hand wins</div>
           <h1>Least <em>Count</em></h1>
           <p>Shed high cards, hoard jokers and call Show at the right moment. Call too early and it costs you 40.</p>
-          <div class="facts"><span class="fact"><b>2–6</b> players</span><span class="fact"><b>7</b> cards each</span><span class="fact">Show at <b>10</b> or less</span><span class="fact">Out at <b>${cfg.limit}</b></span></div>
+          <div class="facts"><span class="fact"><b>2–6</b> players</span><span class="fact"><b>7</b> cards each</span><span class="fact">Show at <b>10</b> or less</span><span class="fact">Out at <b>${cfg.limit}</b> (you choose)</span></div>
         </div>
         <div class="fan" aria-hidden="true">${art()}</div>
       </section>
@@ -138,6 +138,7 @@ const LC = (() => {
           <div class="eyebrow">One device</div><h2>Pass &amp; play</h2>
           <p>Hand the device around. Each hand stays hidden behind a pass screen.</p>
           <div class="names">${locals}</div>
+          <div class="field"><label for="lccaph">Players are out at</label><div class="row">${capInput('lccaph', 'limit', cfg.limit, [50, 100, 150, 200], 20, 1000)}<span class="muted">points</span></div></div>
           <div class="row">${form.locals.length < 6 ? '<button class="btn small" data-do="ladd6">Add player</button>' : ''}<button class="btn gold" data-do="lclocal" style="margin-left:auto">Start game</button></div>
           ${saved?.phase === 'play' ? `<button class="btn small" data-do="lcresume">Resume saved game (${saved.players.map(p => esc(p.name)).join(', ')})</button>` : ''}
         </div>
@@ -245,11 +246,7 @@ const LC = (() => {
 
   return {name:'Least Count', min:2, max:6, cfg, newGame, apply, needs, home, view, rules, art, total, val, rank,
     lobby:(s, host) => host
-      ? `<div class="row"><label class="muted">Players are out at <select data-lccfg="limit">${[50, 100, 150, 200].map(v => `<option ${v === s.cfg?.limit ? 'selected' : ''}>${v}</option>`).join('')}</select> points</label></div>`
+      ? `<div class="row"><label class="muted" for="lccap">Players are out at</label>${capInput('lccap', 'limit', s.cfg?.limit ?? cfg.limit, [50, 100, 150, 200], 20, 1000)}<span class="muted">points</span></div>`
       : `<p class="muted">Players are out at ${s.cfg?.limit || cfg.limit} points</p>`};
 })();
 ENG.leastcount = LC;
-app.addEventListener('change', e => {
-  const k = e.target.dataset.lccfg;
-  if (GID === 'leastcount' && k && mode === 'host' && G?.phase === 'lobby'){ G.cfg = {...G.cfg, [k]:+e.target.value}; G.v++; persist(); render(); }
-});
