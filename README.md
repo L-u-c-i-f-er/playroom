@@ -94,3 +94,7 @@ Hidden information (other players' hands) is sent to every browser at the table 
 **Points caps:** Least Count (out at), the UNO games (play to) and Rummy (pool: out at, 0 for points rummy) take any number the host types, in the lobby or on the pass & play panel. The choice is remembered on that device.
 
 **Paid entry:** in any online lobby the host can turn on paid entry, set an entry fee, add who to pay and upload their payment QR. Players pay outside the app and tap "I've paid"; the host marks who really has, and only paid players get a seat when the game starts. The app never handles money; the host's QR is stored with the table (as `tables/CODE-qr`).
+
+**Turn timer:** in the lobby of any turn-based online game the host can set seconds per turn (15 to 120). The pill at the top counts down for whoever we are waiting on; when it runs out, the host's device makes a safe move for that player (draw, check or fold, pack, end the turn, throw the highest card…).
+
+**Voting a player out:** during an online game the host taps **Players** and calls a vote on someone. Everyone else votes Remove or Keep; a majority removes them (a tie keeps them, and the vote lapses after a minute). The game plays their turns safely until the round ends, then deals without them.

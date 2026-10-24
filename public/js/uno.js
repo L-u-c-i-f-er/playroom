@@ -78,7 +78,7 @@ function makeUno(kind){
   }
   function drawOne(s){
     if (!s.deck.length && (s.pile.length > 1 || s.aside.length)){
-      const top = s.pile.pop(); s.deck = shuffle([...s.pile, ...s.aside]); s.pile = [top]; s.aside = [];
+      const top = s.pile.pop(); s.deck = shuffle([...s.pile, ...s.aside], reseed(s)); s.pile = [top]; s.aside = [];
       log(s, 'The discard pile was shuffled into a new draw pile');
     }
     return s.deck.length ? s.deck.pop() : null;
@@ -102,6 +102,7 @@ function makeUno(kind){
     for (const p of s.players) if (!p.out && p.hand.length >= MERCY){
       p.out = true; p.unoMiss = false; s.aside.push(...p.hand); p.hand = []; s.ko++;
       log(s, `Mercy! ${p.name} hit ${MERCY} cards and is out`, 'big', {title:'No mercy!', sub:`${p.name} is out`});
+      tell(s, [p.id], `You hit ${MERCY} cards: you’re out this round`);
     }
     const live = alive(s);
     if (live.length === 1){ endRound(s, live[0]); return true; }
@@ -118,23 +119,23 @@ function makeUno(kind){
   // What a card does once it lands (player at seat i), and whose turn is next.
   function effect(s, i, f, color){
     s.color = f.c ?? color ?? null;
-    const nx = s.players[seat(s, i, 1)], two = alive(s).length === 2;
+    const nx = s.players[seat(s, i, 1)], two = alive(s).length === 2, by = s.players[i].name;
     switch (f.v){
-      case 'rev': s.dir = -s.dir; log(s, two ? `${nx.name} is skipped` : 'Play reverses'); s.turn = two ? i : seat(s, i, 1); break;
-      case 'skip': log(s, `${nx.name} is skipped`); s.turn = seat(s, i, 2); break;
-      case 'skipall': log(s, `Everyone is skipped. ${s.players[i].name} plays again`); s.turn = i; break;
-      case 'd1': case 'd5': drawN(s, nx, +f.v[1]); s.turn = seat(s, i, 2); break;
-      case 'd2': if (!nm){ drawN(s, nx, 2); s.turn = seat(s, i, 2); break; }   // falls through to stacking in No Mercy
+      case 'rev': s.dir = -s.dir; log(s, two ? `${nx.name} is skipped` : 'Play reverses'); if (two) tell(s, [nx.id], `${by} skipped you`); s.turn = two ? i : seat(s, i, 1); break;
+      case 'skip': log(s, `${nx.name} is skipped`); tell(s, [nx.id], `${by} skipped you`); s.turn = seat(s, i, 2); break;
+      case 'skipall': log(s, `Everyone is skipped. ${by} plays again`); tell(s, alive(s).filter(q => q !== s.players[i]).map(q => q.id), `${by} skipped everyone`); s.turn = i; break;
+      case 'd1': case 'd5': drawN(s, nx, +f.v[1]); tell(s, [nx.id], `${by} made you draw ${f.v[1]} and skipped you`); s.turn = seat(s, i, 2); break;
+      case 'd2': if (!nm){ drawN(s, nx, 2); tell(s, [nx.id], `${by} made you draw 2 and skipped you`); s.turn = seat(s, i, 2); break; }   // falls through to stacking in No Mercy
       case 'd4': case 'wrd4': case 'wd6': case 'wd10': {
         // The penalty builds until someone can't answer it. Wild Reverse Draw Four turns play around first;
         // with two players that sends it straight back to whoever played it.
         if (f.v === 'wrd4'){ s.dir = -s.dir; if (two){ s.stack = {n:(s.stack?.n || 0) + 4, last:4}; s.turn = i; log(s, `Play reverses: ${s.players[i].name} faces +${s.stack.n}`); break; } }
         s.stack = {n:(s.stack?.n || 0) + STACK[f.v], last:STACK[f.v]};
         s.turn = seat(s, i, 1);
-        log(s, `${s.players[s.turn].name} faces +${s.stack.n}`);
+        log(s, `${s.players[s.turn].name} faces +${s.stack.n}`); tell(s, [s.players[s.turn].id], `+${s.stack.n} on you: stack a draw card or take them`);
         break;
       }
-      case 'roul': s.color = null; s.turn = seat(s, i, 1); s.roul = {victim:s.players[s.turn].id}; break;
+      case 'roul': s.color = null; s.turn = seat(s, i, 1); s.roul = {victim:s.players[s.turn].id}; tell(s, [s.roul.victim], `${by} hit you with Color Roulette`); break;
       case 'flip': flipOver(s); s.turn = seat(s, i, 1); break;
       default: s.turn = seat(s, i, 1);
     }
@@ -165,6 +166,7 @@ function makeUno(kind){
       if (!t || t === p) return 'Pick another player to catch';
       if (!t.unoMiss || t.hand.length !== 1) return `${t.name} is safe`;
       t.unoMiss = false; log(s, `${p.name} caught ${t.name} without UNO`, 'big', {title:'Caught!', sub:`${t.name} forgot to call UNO · draws 2`});
+      tell(s, [t.id], `${p.name} caught you without UNO: draw 2`);
       drawN(s, t, 2); mercy(s); return;
     }
     if (a.t === 'uno'){
@@ -256,17 +258,20 @@ function makeUno(kind){
         const v = seat(s, i, 1);
         // Only legal with no card of the color that was in play; it can still be bluffed, and challenged.
         s.pend = {by:pid, victim:s.players[v].id, v:f.v, color:a.color, prev, legal:prev == null || !p.hand.some(x => face(s, x).c === prev)};
+        tell(s, [s.pend.victim], `${p.name} played ${label(f)} on you`);
         s.turn = v; return;
       }
       if (swapWith){
         [p.hand, swapWith.hand] = [swapWith.hand, p.hand];
         [p.unoMiss, swapWith.unoMiss] = [false, false];
         log(s, `${p.name} swaps hands with ${swapWith.name}`, 'big', {title:'Swap!', sub:`${p.name} ⇄ ${swapWith.name}`});
+        tell(s, [swapWith.id], `${p.name} swapped hands with you`);
       }
       if (nm && f.v === '0'){   // every hand moves one seat along in the direction of play
         const live = alive(s), hands = live.map(q => q.hand);
         live.forEach((q, k) => { q.hand = hands[((k - s.dir) % live.length + live.length) % live.length]; q.unoMiss = false; });
         log(s, `Every hand passes ${s.dir > 0 ? 'clockwise' : 'counter-clockwise'}`, 'big', {title:'Pass!', sub:'Every hand moves one seat'});
+        tell(s, live.filter(q => q !== p).map(q => q.id), 'Hands passed: you have a new hand');
       }
       effect(s, i, f, a.color);
       mercy(s);
@@ -277,11 +282,60 @@ function makeUno(kind){
   const needs = s => s.phase === 'play' ? [s.roul ? s.roul.victim : s.pend ? s.pend.victim : s.players[s.turn].id] : [];
 
   /* ----- client ----- */
+  /* ----- card art, drawn like the official app's deck -----
+     Every face is a small SVG: a white border (black on the Dark Side), a tilted oval, and a white symbol with a
+     heavy black outline and drop shadow. Skip, Reverse and the draw cards are drawn shapes, not font glyphs,
+     so they look the same on every phone. Faces are built once and cached. */
+  const LIGHT4 = ['#d8352a', '#1f6bd0', '#2e9b48', '#f2c21b'], DARK4 = ['#e0438c', '#109f9f', '#f0781a', '#7a3bc9'];
+  const ARROW = 'M-21-5H5v-10l17 15-17 15v-10h-26z';
+  const SHAPE = {
+    skip:'<path fill-rule="evenodd" d="M0-25a25 25 0 1 1 0 50a25 25 0 1 1 0-50zm0 9a16 16 0 1 0 0 32a16 16 0 1 0 0-32z"/><rect x="-5" y="-18" width="10" height="36" transform="rotate(45)"/>',
+    rev:`<path d="${ARROW}" transform="rotate(-45) translate(0 -11)"/><path d="${ARROW}" transform="rotate(135) translate(0 -11)"/>`,
+  };
+  const txt = (t, size, y = 0) => `<text y="${y}" text-anchor="middle" dominant-baseline="central" font-family="Lilita One,sans-serif" font-size="${size}">${t}</text>`;
+  // A symbol in three coats: drop shadow, black outline, then the fill.
+  const ink = (g, fill, shadow = true, w = 8) => `<g stroke-linejoin="round">${shadow ? `<g transform="translate(3 4)" fill="#111" stroke="#111" stroke-width="${w}">${g}</g>` : ''}<g fill="none" stroke="#111" stroke-width="${w}">${g}</g><g fill="${fill}">${g}</g></g>`;
+  // Little cards (+2, +4…): each outlined in black with a white edge.
+  const LAY = {1:[[0, 0, -8]], 2:[[-8, -8, -10], [8, 8, -10]], 3:[[-15, 5, -18], [0, -4, 0], [15, 5, 18]], 4:[[-13, 7, -12], [-3, -9, -4], [11, -2, 8], [1, 11, 0]]};
+  const minis = cols => LAY[cols.length].map(([x, y, a], i) => {
+    const r = `<rect x="${x - 11}" y="${y - 16}" width="22" height="32" rx="4" transform="rotate(${a} ${x} ${y})"`;
+    return `<g stroke-linejoin="round"><g transform="translate(3 4)">${r} fill="#111" stroke="#111" stroke-width="7"/></g>${r} fill="none" stroke="#111" stroke-width="7"/>${r} fill="${cols[i]}" stroke="#fff" stroke-width="2.5"/></g>`;
+  }).join('');
+  const quads = (rx, ry, c) => `<path d="M0 0V${-ry}A${rx} ${ry} 0 0 0 ${-rx} 0Z" fill="${c[0]}"/><path d="M0 0H${rx}A${rx} ${ry} 0 0 0 0 ${-ry}Z" fill="${c[1]}"/><path d="M0 0V${ry}A${rx} ${ry} 0 0 0 ${rx} 0Z" fill="${c[2]}"/><path d="M0 0H${-rx}A${rx} ${ry} 0 0 0 0 ${ry}Z" fill="${c[3]}"/>`;
+  const PLUS = {d1:1, d2:2, d4:4, wd2:2, wd4:4, wrd4:4};
+  const faceCache = new Map();
+  function faceSVG(f, dk){
+    const k = `${f.c}${f.v}${dk}`; if (faceCache.has(k)) return faceCache.get(k);
+    const wild = f.c == null, col = wild ? '#16161a' : UCOL[f.c].hex, four = dk ? DARK4 : LIGHT4;
+    const sym = dk ? col : '#fff', v = f.v, n = PLUS[v];
+    // the middle of the card
+    let mid, corner;
+    if (/^\d$/.test(v)){ const g = txt(v, 80, 2) + (v === '6' || v === '9' ? '<rect x="-15" y="33" width="30" height="7" rx="3.5"/>' : ''); mid = ink(g, sym); corner = txt(v, 30); }
+    else if (SHAPE[v]){ mid = ink(SHAPE[v], sym); corner = `<g transform="scale(.42)">${SHAPE[v]}</g>`; }
+    else if (v === 'skipall'){ mid = ink(`<g transform="translate(0 -10) scale(.8)">${SHAPE.skip}</g>${txt('ALL', 24, 30)}`, sym); corner = `<g transform="scale(.42)">${SHAPE.skip}</g>`; }
+    else if (n){ mid = minis(wild ? [four[2], four[1], four[3], four[0]].slice(0, n) : Array(n).fill(col)) + (v === 'wrd4' ? `<g transform="translate(20 -34) scale(.45)">${ink(SHAPE.rev, '#fff', false, 9)}</g>` : ''); corner = txt('+' + n, 24); }
+    else if (v === 'discard'){ mid = minis([col, col, col]) + ink(txt('ALL', 22, 34), '#fff'); corner = txt('ALL', 17); }
+    else if (v === 'flip'){ mid = minis(dk ? ['#fbf8f0', '#16161a'] : ['#16161a', '#fbf8f0']) + ink(txt('FLIP', 22, 36), sym); corner = txt('FLIP', 14); }
+    else if (v === 'wild'){ mid = ''; corner = `<g stroke="#111" stroke-width="1.5">${quads(7, 11, four)}</g>`; }
+    else { const t = {d5:'+5', wd6:'+6', wd10:'+10', wdc:'+?', roul:'?'}[v] || '?'; mid = ink(txt(t, t.length > 2 ? 46 : 60, 2), wild ? '#fff' : sym); corner = txt(t, t.length > 2 ? 18 : 24); }
+    // the oval: four colors on wilds, an outline on everything else (filled black on the Dark Side)
+    const oval = wild && (v === 'wild' || !n) ? `<g transform="rotate(28)">${quads(44, 70, four)}<ellipse rx="44" ry="70" fill="none" stroke="#fff" stroke-width="4"/></g>`
+      : `<ellipse rx="44" ry="70" transform="rotate(28)" fill="${dk ? '#15101c' : 'none'}" stroke="${dk ? col : '#fff'}" stroke-width="${dk ? 3 : 5}"/>`;
+    const cfill = dk ? col : '#fff', cdraw = c => `<g fill="${cfill}" stroke="#111" stroke-width="4" paint-order="stroke" stroke-linejoin="round">${c}</g>`;
+    const svg = `<svg viewBox="0 0 120 178" aria-hidden="true"><defs><linearGradient id="ug" x1="0" y1="0" x2=".6" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".28"/><stop offset=".45" stop-color="#fff" stop-opacity="0"/></linearGradient></defs>
+      <rect width="120" height="178" rx="14" fill="${dk ? '#0d0d10' : '#fbf8f0'}"/><rect x="6" y="6" width="108" height="166" rx="9" fill="${col}"/>
+      <g transform="translate(60 89)">${oval}${mid}</g>
+      <g transform="translate(19 25)">${cdraw(corner)}</g><g transform="translate(101 153) rotate(180)">${cdraw(corner)}</g>
+      <rect x="6" y="6" width="108" height="166" rx="9" fill="url(#ug)"/></svg>`;
+    faceCache.set(k, svg); return svg;
+  }
+  const BACK = `<svg viewBox="0 0 120 178" aria-hidden="true"><rect width="120" height="178" rx="14" fill="#fbf8f0"/><rect x="6" y="6" width="108" height="166" rx="9" fill="#16161a"/>
+    <ellipse cx="60" cy="89" rx="44" ry="70" transform="rotate(28 60 89)" fill="#d8352a"/>
+    <g transform="translate(60 89) rotate(-22)" font-family="Lilita One,sans-serif" font-size="40" text-anchor="middle" dominant-baseline="central" stroke-linejoin="round">
+      <text x="3" y="4" fill="#111" stroke="#111" stroke-width="9">UNO</text><text fill="#f2c21b" stroke="#111" stroke-width="7" paint-order="stroke">UNO</text></g></svg>`;
   function uc(s, id, o = {}){
     const f = CARDS[id][o.side ?? s?.side ?? 0], dk = (o.side ?? s?.side ?? 0) === 1;
-    const g = GLY[f.v] ?? f.v, sub = SUB[f.v] || '';
-    return `<div class="uc ${dk ? 'dark' : ''} ${f.c == null ? 'wild' : ''} ${o.cls || ''}" style="--uc:${f.c == null ? '#141416' : UCOL[f.c].hex}" ${o.cid ? `data-cid="${id}"` : ''} ${o.attrs || ''} title="${label(f)}">
-      <span class="ucn">${g || 'W'}</span><span class="uco"><b class="${g.length > 2 ? 'w' : ''}">${g}</b>${sub ? `<small>${sub}</small>` : ''}</span><span class="ucn r">${g || 'W'}</span></div>`;
+    return `<div class="uc ${dk ? 'dark' : ''} ${f.c == null ? 'wild' : ''} ${o.cls || ''}" ${o.cid ? `data-cid="${id}"` : ''} ${o.attrs || ''} title="${label(f)}">${faceSVG(f, dk)}</div>`;
   }
   const find = (sd, c, v) => CARDS.findIndex(fc => fc[sd].c === c && fc[sd].v === v);
   function art(){
@@ -380,6 +434,7 @@ function makeUno(kind){
   const pt = d => { const a = d * Math.PI / 180; return `${(100 + 88 * Math.cos(a)).toFixed(1)} ${(100 + 88 * Math.sin(a)).toFixed(1)}`; };
   const RING = [0, 120, 240].map(d => `<path d="M${pt(d)} A88 88 0 0 1 ${pt(d + 92)}" marker-end="url(#uah)"/>`).join('');
   let lastSide = {}, flipT = 0;   // when the side changes, the table plays a flip for 900ms
+  let lastDir = {}, dirT = 0;     // when play reverses, the ring turns once
   const since = (t, ms) => { const e = Date.now() - t; return e < ms ? e : -1; };
   function view(s){
     const meP = P(s, me), cur = s.players[s.turn], actor = needs(s)[0], who = P(s, actor) || cur, myTurn = s.phase === 'play' && actor === me;
@@ -389,11 +444,13 @@ function makeUno(kind){
     const canDraw = myTurn && !s.pend && !s.roul && s.step === 'play' && (!nm || !!s.stack || !meP.hand.some(id => canPlay(s, id))), pd = s.pend;
     const da = canDraw ? 'data-do="unodraw" role="button" tabindex="0" aria-label="Draw a card"' : '';
     const deck = flip && s.deck.length ? uc(s, s.deck.at(-1), {side:1 - s.side, cls:canDraw ? 'canpick' : '', attrs:da})
-      : `<div class="uc back ${canDraw ? 'canpick' : ''}" ${da}><span>UNO</span></div>`;
+      : `<div class="uc uback ${canDraw ? 'canpick' : ''}" ${da}>${BACK}</div>`;
     const cc = s.color != null ? UCOL[s.color].hex : (s.side ? '#f3e9ff' : '#ffffff');
     if (lastSide.gid === s.gid && lastSide.side !== s.side) flipT = Date.now();
     lastSide = {gid:s.gid, side:s.side};
-    const fl = since(flipT, 900), spin = (Date.now() % 16000) / 1000;
+    if (lastDir.gid === s.gid && lastDir.dir !== s.dir) dirT = Date.now();
+    lastDir = {gid:s.gid, dir:s.dir};
+    const fl = since(flipT, 900), turned = since(dirT, 900);
     let big, hint = '';
     if (s.phase === 'over') big = `${esc(P(s, s.winner).name)} ${P(s, s.winner).hand.length ? 'is the last one standing' : 'went out'}`;
     else if (s.roul) big = myTurn ? 'Spin the roulette' : `${esc(who.name)} spins the roulette`;
@@ -409,10 +466,10 @@ function makeUno(kind){
         <div class="tools">${s.code ? `<span class="codechip">${esc(s.code)}</span>` : ''}<button class="tool" data-do="rules">Rules</button><button class="tool" data-do="mute">${muted ? 'Sound off' : 'Sound on'}</button><button class="tool" data-do="leave">Leave</button></div>
       </header>
       <section class="uno-table ${fl >= 0 ? 'flipping' : ''}" style="--cc:${cc};${fl >= 0 ? `animation-delay:-${fl}ms` : ''}">
-        <div class="uno-felt"></div>
+        <div class="uno-felt"><span class="uno-floor" aria-hidden="true">UNO</span></div>
         ${opps.map((p, i) => {
           const n = p.hand.length, m = Math.min(n, 9);
-          const fan = flip ? p.hand.slice(0, m).map(id => uc(s, id, {side:1 - s.side, cls:'mini'})) : Array.from({length:m}, () => '<div class="uc back mini"><span></span></div>');
+          const fan = flip ? p.hand.slice(0, m).map(id => uc(s, id, {side:1 - s.side, cls:'mini'})) : Array.from({length:m}, () => `<div class="uc uback mini">${BACK}</div>`);
           return `<div class="uno-seat ${p.id === actor ? 'up' : ''} ${p.out ? 'gone' : ''} ${nm && n >= 18 ? 'danger' : ''}" style="left:${xy[i][0]}%;top:${xy[i][1]}%" data-pid="${esc(p.id)}">
             <div class="uno-fan" ${flip ? `title="The other side of ${esc(p.name)}’s cards"` : ''}>${fan.map((h, j) => `<div style="--j:${j - (m - 1) / 2}">${h}</div>`).join('')}</div>
             <div class="uno-who">${avatar(s, p)}<span class="uno-n">${n}</span></div>
@@ -421,11 +478,12 @@ function makeUno(kind){
             ${n !== 1 ? '' : !p.unoMiss ? '<span class="uno-tag">UNO!</span>' : meP && s.phase === 'play' ? `<button class="uno-catch" data-do="unocatch" data-id="${esc(p.id)}">Catch! No UNO</button>` : ''}
           </div>`; }).join('')}
         <div class="uno-pit">
-          <svg class="uno-ring" viewBox="0 0 200 200" aria-hidden="true" style="animation-delay:-${spin}s"><defs><marker id="uah" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="3.2" markerHeight="3.2" orient="auto"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker></defs><g ${s.dir < 0 ? 'transform="translate(200 0) scale(-1 1)"' : ''}>${RING}</g></svg>
+          <svg class="uno-ring ${turned ? 'turned' : ''}" viewBox="0 0 200 200" aria-hidden="true" style="--rd:${s.dir}"><defs><marker id="uah" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="3.2" markerHeight="3.2" orient="auto"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker></defs><g ${s.dir < 0 ? 'transform="translate(200 0) scale(-1 1)"' : ''}>${RING}</g></svg>
           <div class="uno-deck" id="deck">${deck}<span class="uno-left">${s.deck.length}</span></div>
           <div class="upile">${s.pile.slice(-4).map(id => `<div style="transform:rotate(${rotOf(id) * 1.6}deg)">${uc(s, id, {cid:true})}</div>`).join('')}</div>
           ${s.stack ? `<div class="uno-stack" aria-live="polite">+${s.stack.n}</div>` : ''}
           <span class="uno-color">${s.roul ? 'Roulette!' : s.color != null ? UCOL[s.color].name : 'Any color'}</span>
+          <span class="uno-dirchip" title="Direction of play">${s.dir > 0 ? '↻ Clockwise' : '↺ Counter-clockwise'}</span>
         </div>
       </section>
       <div class="uno-say" aria-live="polite"><b>${big}</b>${hint ? `<span>${hint}</span>` : ''}<span class="uno-last">${esc(s.log.at(-1)?.text || '')}</span></div>
@@ -448,7 +506,7 @@ function makeUno(kind){
         <span class="uno-hint">${hint}</span>
         ${act && s.step === 'play' && (!nm || s.stack || !any) ? `<button class="uno-btn ${s.stack ? 'take' : ''}" data-do="unodraw">${s.stack ? `Take +${s.stack.n}` : nm ? 'Draw until playable' : 'Draw'}</button>` : ''}
         ${act && s.step === 'drawn' && !nm ? '<button class="uno-btn" data-do="unopass">Keep it</button>' : ''}
-        <button class="uno-call ${ui.unoArm ? 'on' : ''} ${unoNow && !ui.unoArm || late ? 'urgent' : ''}" data-do="${late ? 'unolate' : 'unoarm'}" ${unoNow || late ? '' : 'disabled'} aria-pressed="${!!ui.unoArm}">UNO</button>
+        <button class="uno-call ${ui.unoArm ? 'on' : ''} ${unoNow && !ui.unoArm || late ? 'urgent' : ''}" data-do="${late ? 'unolate' : 'unoarm'}" ${unoNow || late ? '' : 'disabled'} aria-pressed="${!!ui.unoArm}"><small>CALL</small>UNO</button>
       </div>
     </section>`;
   }
@@ -497,7 +555,18 @@ function makeUno(kind){
   }
 
   const late = {unit:'points', why:'the lowest score at the table', score:s => Math.min(...s.players.map(p => s.totals[p.id] || 0))};
-  return {name:NICE, nm, late, min:2, max:nm ? 6 : 10, cfg, CARDS, STACK, newGame, apply, needs, home, view, rules, art, face, canPlay, legal, pts,
+  // Out of time: take any penalty, draw, and play a drawn card only where the rules insist (No Mercy).
+  function timeout(s, pid){
+    const p = P(s, pid), cs = colors(s), n = cs.map(k => p.hand.filter(id => face(s, id).c === k).length), most = cs[n.indexOf(Math.max(...n))];
+    if (s.roul) return {t:'roulette', color:most};
+    if (s.pend) return {t:'accept'};
+    if (s.stack) return {t:'draw'};
+    const play = card => ({t:'play', card, color:most, target:alive(s).find(q => q !== p)?.id, uno:true});
+    if (s.step === 'drawn') return nm ? play(s.drawn) : {t:'pass'};
+    const can = nm ? p.hand.find(id => canPlay(s, id)) : null;   // No Mercy: no drawing while you can play
+    return can != null ? play(can) : {t:'draw'};
+  }
+  return {name:NICE, nm, late, timeout, min:2, max:nm ? 6 : 10, cfg, CARDS, STACK, newGame, apply, needs, home, view, rules, art, face, canPlay, legal, pts, uc, BACK,
     lobby:(s, host) => host
       ? `<div class="row"><label class="muted" for="unocap">Play to</label>${capInput('unocap', 'target', s.cfg?.target ?? cfg.target, TARGETS.map(t => t[0]), 1, 10000)}<span class="muted">points · 1 for a single round</span></div>`
       : `<p class="muted">Playing ${(s.cfg?.target ?? cfg.target) <= 1 ? 'a single round' : `to ${(s.cfg?.target ?? cfg.target).toLocaleString()} points`}</p>`};

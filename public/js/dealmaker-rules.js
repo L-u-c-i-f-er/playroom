@@ -59,7 +59,14 @@ const groupOf = (p, id) => p.groups.find(g => g.cards.includes(id) || g.house ==
 const worth = ids => ids.reduce((a, id) => a + C(id).value, 0);
 const hasNo = p => p.hand.some(id => C(id).act === 'jsn');
 const clone = o => JSON.parse(JSON.stringify(o));
-function shuffle(a){ for (let i = a.length - 1; i > 0; i--){ const j = Math.random() * (i + 1) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; }
+// With a seed, every device gets the same order: a guest's instant preview of a reshuffle matches what the host deals.
+function shuffle(a, seed){
+  let x = 0; for (const ch of String(seed ?? '')) x = Math.imul(x ^ ch.charCodeAt(0), 16777619) >>> 0;
+  const rnd = seed == null ? Math.random : () => { x = x + 0x6D2B79F5 >>> 0; let t = Math.imul(x ^ x >>> 15, 1 | x); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  for (let i = a.length - 1; i > 0; i--){ const j = rnd() * (i + 1) | 0; [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
+const reseed = s => `${s.gid || ''}:${s.ln}`;
 function payable(p){
   const out = [...p.bank];
   for (const g of p.groups){ out.push(...g.cards.filter(id => C(id).value > 0)); if (g.house != null) out.push(g.house); if (g.hotel != null) out.push(g.hotel); }
@@ -98,6 +105,8 @@ function normalize(p){
   }
   p.groups = out;
 }
+// A personal note on the latest log line: those players get a pop-up and a buzz ("Asha skipped you").
+const tell = (s, ids, you) => { if (ids.length) Object.assign(s.log.at(-1), {to:ids, you}); };
 function log(s, text, kind = 'info', extra = {}){
   s.ln = (s.ln || 0) + 1;
   s.log.push({n:s.ln, text, kind, ...extra});
@@ -107,7 +116,7 @@ function draw(s, p, n){
   for (let i = 0; i < n; i++){
     if (!s.deck.length){
       if (!s.discard.length) break;
-      s.deck = shuffle(s.discard); s.discard = [];
+      s.deck = shuffle(s.discard, reseed(s)); s.discard = [];
       log(s, 'The discard pile was shuffled into a new deck');
     }
     p.hand.push(s.deck.pop());
@@ -127,6 +136,23 @@ function nextTurn(s){
   const p = s.players[s.turn];
   draw(s, p, p.hand.length ? 2 : 5);
   log(s, `${p.name}’s turn`, 'turn');
+}
+function autoPick(p, assets, amount){
+  const bank = assets.filter(id => p.bank.includes(id));
+  let dp = new Map([[0, []]]);
+  for (const id of bank) for (const [sum, arr] of [...dp]){ const n = sum + C(id).value; if (!dp.has(n)) dp.set(n, [...arr, id]); }
+  const best = [...dp.keys()].filter(k => k >= amount).sort((a, b) => a - b)[0];
+  if (best != null) return dp.get(best);
+  const pick = [...bank]; let sum = worth(pick);
+  for (const id of assets.filter(id => !bank.includes(id)).sort((a, b) => C(a).value - C(b).value)){ if (sum >= amount) break; pick.push(id); sum += C(id).value; }
+  return pick;
+}
+// Out of time: pay what's owed, allow what's played on you, or end the turn (discarding the cheapest cards past 7).
+function timeout(s, pid){
+  const pd = s.pending, p = P(s, pid);
+  if (pd) return pid !== pd.actor && PAY.has(pd.kind) ? {t:'pay', cards:autoPick(p, payable(p), pd.amount)} : {t:'accept'};
+  if (s.discarding) return {t:'discard', cards:[...p.hand].sort((a, b) => (C(a).value || 0) - (C(b).value || 0)).slice(0, p.hand.length - 7)};
+  return {t:'end'};
 }
 function needs(s){
   if (s.phase !== 'play') return [];

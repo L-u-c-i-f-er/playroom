@@ -348,7 +348,8 @@ const TP = (() => {
     tpresume:() => { G = store.get('teenpatti-local'); if (!G) return; mode = 'local'; ui = freshUI(); seenLog = -1; screen = 'game'; render(); },
   });
 
-  return {name:'Teen Patti', min:3, max:8, cfg, late:{unit:'chips', why:'the starting chips', score:s => s.cfg.stack}, newGame, apply, needs, home, view, rules, art, rank3, cmp, handName, pot, canSide,
+  return {name:'Teen Patti', min:3, max:8, cfg, late:{unit:'chips', why:'the starting chips', score:s => s.cfg.stack},
+    timeout:s => s.side ? {t:'sideshow', accept:false} : {t:'pack'}, newGame, apply, needs, home, view, rules, art, rank3, cmp, handName, pot, canSide,
     lobby:(s, host) => host ? setup({...cfg, ...(s.cfg || {})}, 'tpl')
       : `<p class="muted">Boot ${s.cfg?.boot ?? cfg.boot} · ${fmt(s.cfg?.stack ?? cfg.stack)} chips each${s.cfg?.potLimit ? ` · pot limit ${fmt(s.cfg.potLimit)}` : ''}</p>`};
 })();

@@ -110,6 +110,7 @@ for (let g = 0; g < 150; g++){
     for (let step = 0; step < 600 && s.phase === 'play'; step++){
       assert.strictEqual(chips(s), total);
       const pid = TP.needs(s)[0], p = P(s, pid), r = Math.random();
+      if (Math.random() < .1){ assert.strictEqual(TP.apply(s, pid, TP.timeout(s, pid)), undefined, 'timeout move'); continue; }
       if (s.side){ ok(s, pid, {t:'sideshow', accept:Math.random() < .6}); sides++; continue; }
       if (!p.seen && r < .3){ ok(s, pid, {t:'see'}); continue; }
       const min = (p.seen ? 2 : 1) * s.stake, live = s.players.filter(q => !q.out && !q.packed);

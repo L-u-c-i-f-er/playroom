@@ -111,6 +111,8 @@ function handle(ws, m){
     }
     case 'leave':
       leaveRoom(ws, m.room); return reply(true);
+    case 'ping':
+      return reply(true);
     default:
       return reply(null, 'unknown');
   }

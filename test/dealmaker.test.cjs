@@ -2,7 +2,7 @@
 const fs = require('fs'), assert = require('assert');
 const path = require('path');
 const src = fs.readFileSync(path.join(__dirname, '..', 'public', 'js', 'dealmaker-rules.js'), 'utf8');
-const E = new Function(src + '\nreturn {CARDS,COLORS,newGame,apply,needs,payable,worth,P,C,full,setsOf,rentFor,clone};')();
+const E = new Function(src + '\nreturn {CARDS,COLORS,newGame,apply,needs,payable,worth,P,C,full,setsOf,rentFor,clone,timeout};')();
 const {CARDS, newGame, apply, needs, payable, P, C, full, rentFor} = E;
 assert.strictEqual(CARDS.length, 106);
 const pick = a => a[Math.random() * a.length | 0];
@@ -45,6 +45,7 @@ for (let game = 0; game < 400; game++){
   count(s);
   for (let step = 0; step < 4000 && s.phase === 'play'; step++){
     const pid = needs(s)[0], cs = candidates(s, pid).sort(() => Math.random() - .5);
+    if (Math.random() < .1){ assert.strictEqual(apply(s, pid, E.timeout(s, pid)), undefined, 'timeout move'); count(s); continue; }
     let ok = false;
     for (const a of cs){
       const before = JSON.stringify(s), err = apply(s, pid, a);

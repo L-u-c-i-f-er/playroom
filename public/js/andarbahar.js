@@ -158,7 +158,7 @@ const AB = (() => {
       if (s.phase !== 'bet') return p.prev && s.phase === 'done' ? `<span class="muted">Bet ${p.prev.amt} on ${SIDE[p.prev.side]}</span>` : '<span class="muted">No bet this round</span>';
       if (p.chips < 1) return `<button class="btn small gold" data-do="abtop" data-pid="${esc(p.id)}">Top up to ${s.cfg.start}</button>`;
       return `<div class="ab-ctrl">
-        <div class="row ab-stakes">${[10, 50, 100, 250, 500].filter(v => v <= p.chips).concat(p.chips).filter((v, i, a) => a.indexOf(v) === i).map(v => `<button class="chipbtn ${v === st ? 'on' : ''}" data-do="abstake" data-pid="${esc(p.id)}" data-v="${v}">${v === p.chips ? 'All ' + v : v}</button>`).join('')}</div>
+        <div class="row ab-stakes">${[10, 50, 100, 250, 500].filter(v => v <= p.chips).concat(p.chips).filter((v, i, a) => a.indexOf(v) === i).map(v => `<button class="chipbtn ${v === st ? 'on' : ''}" data-do="abstake" data-pid="${esc(p.id)}" data-v="${v}">${v === p.chips ? 'All' : v}</button>`).join('')}</div>
         <div class="row"><button class="btn small ${p.bet?.side === 'andar' ? 'gold' : ''}" data-do="abbet" data-pid="${esc(p.id)}" data-side="andar">Andar ${st}</button><button class="btn small ${p.bet?.side === 'bahar' ? 'gold' : ''}" data-do="abbet" data-pid="${esc(p.id)}" data-side="bahar">Bahar ${st}</button>
           ${p.bet ? `<button class="tool" data-do="abclear" data-pid="${esc(p.id)}">Clear</button>` : p.prev && p.prev.amt <= p.chips ? `<button class="tool" data-do="abrepeat" data-pid="${esc(p.id)}">Same as last (${p.prev.amt} ${SIDE[p.prev.side]})</button>` : ''}
           ${p.chips < 100 ? `<button class="tool" data-do="abtop" data-pid="${esc(p.id)}">Top up</button>` : ''}</div></div>`;

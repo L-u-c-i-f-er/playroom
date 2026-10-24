@@ -125,6 +125,7 @@ for (let g = 0; g < 300; g++){
     const all = [...s.deck, ...s.pile, s.joker, ...s.players.flatMap(p => p.hand)];
     assert.strictEqual(all.length, 106); assert.strictEqual(new Set(all).size, 106);
     const pid = RUM.needs(s)[0], p = P(s, pid);
+    if (Math.random() < .1){ assert.strictEqual(RUM.apply(s, pid, RUM.timeout(s, pid)), undefined, 'timeout move'); continue; }
     if (s.phase === 'show'){ assert.strictEqual(RUM.apply(s, pid, {t:'show', groups:RUM.auto(s, p.hand)}), undefined); continue; }
     if (s.step === 'draw'){
       if (Math.random() < .01){ assert.strictEqual(RUM.apply(s, pid, {t:'drop'}), undefined); continue; }

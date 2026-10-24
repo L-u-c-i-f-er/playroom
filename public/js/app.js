@@ -37,8 +37,8 @@ const seatColor = (s, id) => SEAT[Math.max(0, s.players.findIndex(p => p.id === 
 const avatar = (s, p, cls = '') => `<span class="av ${cls}" style="--pc:${seatColor(s, p.id)}">${esc((p.name || '?')[0].toUpperCase())}</span>`;
 const live = () => new Set((net.room?.peers() || []).map(p => p.presence?.pid).filter(Boolean));
 
-function toast(msg){
-  const el = document.createElement('div'); el.className = 'toast'; el.textContent = msg;
+function toast(msg, cls = ''){
+  const el = document.createElement('div'); el.className = 'toast ' + cls; el.textContent = msg;
   document.getElementById('toasts').append(el); setTimeout(() => el.remove(), 2800);
 }
 function showBanner(e){
@@ -154,7 +154,8 @@ const GAMES = [
    tags:['3–8 players', 'Blind & seen', 'Online', 'Pass & play'], art:() => TP.art()},
 ];
 // Each game plugs in here: rules engine (newGame/apply/needs) plus its home and table views.
-const ENG = {dealmaker:{name:'Dealmaker', min:2, max:5, newGame, apply, needs, home:() => vHome(), view:s => vGame(s)}};
+const ENG = {dealmaker:{name:'Dealmaker', min:2, max:5, newGame, apply, needs, home:() => vHome(), view:s => vGame(s),
+  timeout}};
 function fanHTML(size, k){
   const pick = f => CARDS.find(f).id;
   return [[pick(c => c.name === 'Boardwalk'), -16, -150, 18], [pick(c => c.act === 'breaker'), -6, -70, 0], [pick(c => c.value === 10 && c.type === 'money'), 4, 10, -6],
@@ -249,6 +250,8 @@ function vLobby(s){
     <ul class="seats">${s.players.map(p => `<li>${avatar(s, p)}<span class="grow">${esc(p.name)}${p.id === me ? ' (you)' : ''}</span>${p.id === s.host ? '<span class="tag">Host</span>' : ''}${payMark(s, p, host)}<span class="dot ${on.has(p.id) ? 'on' : ''}" title="${on.has(p.id) ? 'Connected' : 'Away'}"></span>${host && p.id !== me ? `<button class="tool" data-do="kick" data-id="${esc(p.id)}">Remove</button>` : ''}</li>`).join('')}</ul>
     <p class="muted">${ENG[GID].name} · ${s.players.length}/${ENG[GID].max} seats taken</p>
     ${ENG[GID].lobby ? ENG[GID].lobby(s, host) : ''}
+    ${ENG[GID].timeout ? host ? `<label class="row timer-f"><b class="grow">Turn timer</b><select data-timer aria-label="Time for each turn">${TIMES.map(t => `<option value="${t}" ${t === (s.timer || 0) ? 'selected' : ''}>${t ? t + ' seconds' : 'Off'}</option>`).join('')}</select></label>`
+      : s.timer ? `<p class="muted">Turn timer: ${s.timer} seconds. When it runs out, the game makes a safe move for you.</p>` : '' : ''}
     ${payPanel(s, host)}
     ${host ? (n => `<button class="btn gold" data-do="start" ${n < ENG[GID].min ? 'disabled' : ''}>${n < ENG[GID].min ? (s.pay?.on ? `Mark at least ${ENG[GID].min} players paid` : 'Waiting for at least one friend') : `Start with ${n}${s.pay?.on ? ' paid' : ''} player${n > 1 ? 's' : ''}`}</button>`)(seated(s).length)
       : P(s, me) ? (s.pay?.on && !isPaid(s, me) ? '' : `<p class="note">You’re in. Waiting for ${esc(hostP?.name || 'the host')} to deal.</p>`) : `<p class="note">Joining… if this takes long, check the code with the host.</p>`}
@@ -329,6 +332,7 @@ function lateBar(s){
       : room > 0 ? '<button class="btn small gold" data-do="lateask">Ask to join this game</button>' : '<span>The table is full.</span>'}</div>`;
   }
   const n = Object.keys(wait).length;
+  if (s.phase === 'play' && !n && !late.length) return '';   // mid-round it would only cover the table; new players join between rounds anyway
   return `<div class="late-bar"><button class="btn small ${n ? 'gold' : ''}" data-do="lateopen">${n ? `${n} waiting to join` : 'Add a player'}${late.length ? ` · ${late.length} joining next round` : ''}</button></div>`;
 }
 function lateSheet(s){
@@ -355,6 +359,87 @@ function lateAdmit(id, name, el){
   log(G, `${name} will join next round with ${v.toLocaleString()} ${ENG[GID].late.unit}`);
   lateSave();
 }
+
+/* ---------- turn timer and voting a player out (online tables) ----------
+   The host picks seconds per turn in the lobby. Each player who has to act gets that long (fresh after
+   every move they make); when it runs out, the host's device makes the game's safe move for them
+   (draw, fold, pack, end the turn…). The host can also call a vote to remove a player: a majority of
+   the others decides, and the game plays their turns safely until the round ends, then deals without them. */
+const TIMES = [0, 15, 30, 45, 60, 90, 120];
+const playing = s => !!s?.players && s.phase !== 'lobby' && s.phase !== 'over';
+let skew = 0;   // host's clock minus this device's, so guests count down to the host's deadlines
+const clockEl = Object.assign(document.createElement('div'), {className:'turn-clock', hidden:true});
+document.body.append(clockEl);
+const voters = s => s.players.filter(p => !s.gone?.[p.id] && p.id !== s.vote?.target).map(p => p.id);
+function tally(){
+  const v = G.vote, ids = voters(G), y = ids.filter(id => v.yes[id]).length, n = ids.filter(id => v.no[id]).length;
+  if (y * 2 > ids.length){
+    G.gone = {...G.gone, [v.target]:true}; G.nolate = [...(G.nolate || []), v.target]; G.vote = null;
+    log(G, `${v.name} was voted out (${y}–${n})`, 'big', {title:'Voted out', sub:v.name});
+  } else if (n * 2 >= ids.length || Date.now() > v.until){ G.vote = null; log(G, `${v.name} stays (${y}–${n})`); }
+}
+function hostClock(){
+  if (mode !== 'host' || !playing(G)) return;
+  const e = ENG[GID], now = Date.now(), need = e.timeout ? e.needs(G) : [], clock = {...(G.clock || {})};
+  let changed = false;
+  if (G.vote && now > G.vote.until){ tally(); changed = true; }
+  for (const id of Object.keys(clock)) if (!need.includes(id)){ delete clock[id]; changed = true; }
+  for (const id of need){
+    const gone = G.gone?.[id];
+    if (!gone && !G.timer) continue;
+    if (!gone && !clock[id]){ clock[id] = now + G.timer * 1000; changed = true; continue; }
+    if (!gone && clock[id] > now) continue;
+    if (!gone) log(G, `${P(G, id).name} ran out of time`);
+    for (let k = 0; k < 8 && e.needs(G).includes(id) && !e.apply(G, id, e.timeout(G, id)); k++) changed = true;
+    delete clock[id];
+  }
+  if (changed){ G.clock = clock; G.now = now; G.v++; persist(); render(); }
+}
+function showClock(){
+  if (screen === 'game' && hostAway()){
+    const html = `<span>${esc(P(G, G.host)?.name || 'Host')}’s phone is away</span><b>…</b>`;
+    if (clockEl.innerHTML !== html) clockEl.innerHTML = html;
+    clockEl.className = 'turn-clock away'; clockEl.hidden = false; return;
+  }
+  clockEl.classList.remove('away');
+  const s = G, ids = s?.timer && screen === 'game' && mode !== 'local' && playing(s) ? ENG[GID].needs(s).filter(id => s.clock?.[id] && !s.gone?.[id]) : [];
+  if (!ids.length){ clockEl.hidden = true; return; }
+  const mine = ids.includes(me), left = Math.max(0, Math.ceil((s.clock[mine ? me : ids[0]] - Date.now() - skew) / 1000));
+  const who = mine ? 'Your turn' : ids.slice(0, 2).map(id => P(s, id).name).join(', ') + (ids.length > 2 ? ` +${ids.length - 2}` : '');
+  const html = `<span>${esc(who)}</span><b>${left}s</b>`;
+  if (clockEl.innerHTML !== html) clockEl.innerHTML = html;
+  clockEl.classList.toggle('mine', mine); clockEl.classList.toggle('low', left <= 5);
+  clockEl.hidden = false;
+}
+let wasMine = false;
+setInterval(() => {
+  const now = Date.now();
+  if (mode === 'host' && net.room && now - lastBeat > 10000){ lastBeat = now; net.room.presence({beat:now}).catch(() => {}); }
+  if (mode === 'guest' && opt && now - opt.at > 5000){ opt.at = now; net.room?.presence({act:{n:opt.n, a:opt.a}}).catch(() => {}); }   // no answer yet: send it again (the host ignores repeats)
+  const mine = mode !== 'local' && screen === 'game' && playing(G) && !!ENG[GID].needs?.(G).includes(me);
+  if (mine && !wasMine && document.visibilityState === 'visible') navigator.vibrate?.(70);
+  wasMine = mine;
+  hostClock(); showClock();
+}, 500);
+function voteCard(s){
+  const v = s.vote, ids = voters(s), y = ids.filter(id => v.yes[id]).length, n = ids.filter(id => v.no[id]).length;
+  const mine = v.yes[me] ? 'to remove' : v.no[me] ? 'to keep' : myVote === v.id ? '' : null;
+  const done = mine != null || !ids.includes(me) || me === v.target;   // nothing left to answer: shrink so it doesn't cover the game
+  return `<div class="vote-card ${done && mode !== 'host' ? 'small' : ''}" role="status"><div class="eyebrow">Table vote</div><b>Remove ${esc(v.name)} from the game?</b>
+    <p class="muted">${y} remove · ${n} keep · ${Math.floor(ids.length / 2) + 1} needed</p>
+    ${me === v.target ? '<p>The table is voting on you.</p>' : !ids.includes(me) ? '' : mine != null ? `<p>You voted${mine ? ' ' + mine : ''}.</p>`
+      : '<div class="acts"><button class="btn small" data-do="vote" data-yes="">Keep</button><button class="btn small gold" data-do="vote" data-yes="1">Remove</button></div>'}
+    ${mode === 'host' ? '<button class="tool" data-do="votestop">Cancel the vote</button>' : ''}</div>`;
+}
+function playersSheet(s){
+  return sheet(`<div class="eyebrow">Players</div><h2>Vote someone out</h2>
+    <p class="lede">Call a vote to remove a player. Everyone else votes; a majority removes them. The game plays their turns safely until this round ends.</p>
+    ${s.players.filter(p => p.id !== me).map(p => `<div class="late-row"><span class="grow">${esc(p.name)}</span>${s.gone?.[p.id] ? '<span class="muted">Voted out</span>'
+      : `<button class="btn small" data-do="votecall" data-id="${esc(p.id)}" ${s.vote ? 'disabled' : ''}>Call a vote</button>`}</div>`).join('')}
+    ${s.vote ? '<p class="muted">One vote at a time.</p>' : ''}
+    <div class="acts"><button class="btn" data-do="closemodal">Done</button></div>`);
+}
+let myVote = null;
 
 function vGame(s){
   if (s.phase === 'lobby') return vLobby(s);
@@ -543,16 +628,6 @@ function vModal(s, meP, cur, myTurn){
   if (s.discarding && myTurn) return vDiscard(s, meP);
   return '';
 }
-function autoPick(p, assets, amount){
-  const bank = assets.filter(id => p.bank.includes(id));
-  let dp = new Map([[0, []]]);
-  for (const id of bank) for (const [sum, arr] of [...dp]){ const n = sum + C(id).value; if (!dp.has(n)) dp.set(n, [...arr, id]); }
-  const best = [...dp.keys()].filter(k => k >= amount).sort((a, b) => a - b)[0];
-  if (best != null) return dp.get(best);
-  const pick = [...bank]; let sum = worth(pick);
-  for (const id of assets.filter(id => !bank.includes(id)).sort((a, b) => C(a).value - C(b).value)){ if (sum >= amount) break; pick.push(id); sum += C(id).value; }
-  return pick;
-}
 function vRespond(s, meP){
   const pd = s.pending, actor = P(s, pd.actor);
   const jsnId = CARDS.find(c => c.act === 'jsn').id;
@@ -710,6 +785,12 @@ function renderNow(){
   if (screen === 'game' && s && lateCan(s)){
     app.insertAdjacentHTML('beforeend', ui.modal === 'late' && mode !== 'guest' ? lateSheet(s) : lateBar(s));
   }
+  if (screen === 'game' && playing(G) && mode !== 'local'){
+    if (mode === 'host') app.querySelector('.tool[data-do="leave"]')?.insertAdjacentHTML('beforebegin', '<button class="tool" data-do="players">Players</button>');
+    if (ui.modal === 'players' && mode === 'host') app.insertAdjacentHTML('beforeend', playersSheet(G));
+    else if (G.vote) app.insertAdjacentHTML('beforeend', voteCard(G));
+    else if (G.gone?.[me]) app.insertAdjacentHTML('beforeend', '<div class="late-bar"><span>You were voted out of this game.</span><button class="btn small" data-do="leave">Leave</button></div>');
+  }
   if (focusId){ const f = document.getElementById(focusId); if (f){ f.focus(); try { f.setSelectionRange(selStart, selStart); } catch {} } }
   if (s && screen === 'game') events(s);
   const flown = GID === 'dealmaker' && s && screen === 'game' && s.players && s.phase !== 'lobby' ? flights(s, before) : new Set();
@@ -743,6 +824,7 @@ function events(s){
   const has = k => fresh.some(e => e.kind === k);
   sfx(has('win') ? 'win' : has('big') ? 'big' : has('pay') || has('steal') ? 'coin' : has('turn') ? 'turn' : fresh.length ? 'card' : null);
   if (has('win')) confetti();
+  if (mode !== 'local') for (const e of fresh) if (e.to?.includes(me)){ toast(e.you, 'you'); navigator.vibrate?.([90, 60, 90]); }
   const er = G?.errs?.[me];
   if (mode === 'guest' && er && er.n === lastN && shownErr !== er.n){ shownErr = er.n; toast(er.msg); }
 }
@@ -751,16 +833,18 @@ function events(s){
 // Every move goes through here: checked on a copy first, then applied (host/local) or sent to the host (guest).
 function send(a, keepUI = false){
   const s = viewState(), eng = ENG[GID];
-  if (mode === 'guest' && opt && (G.ack?.[me] || 0) < opt.n) return toast('Still sending your last move…');
+  if (G?.gone?.[me]) return toast('You were voted out of this game');
+  if (mode === 'guest' && opt && (G.ack?.[me] || 0) < opt.n) return toast(hostAway() ? `Waiting for ${P(G, G.host)?.name || 'the host'}’s phone. Your move goes through when they open the game` : 'Still sending your last move…');
   const trial = clone(s), err = eng.apply(trial, me, a);
   if (err){ sfx('err'); return toast(err); }
   if (!keepUI) ui = {...freshUI(), log:ui.log, revealed:ui.revealed, hostOnline:ui.hostOnline};
   if (mode === 'guest'){
-    const n = Math.max(lastN, G.ack?.[me] || 0) + 1; lastN = n; opt = {n, s:trial};
+    const n = Math.max(lastN, G.ack?.[me] || 0) + 1; lastN = n; opt = {n, s:trial, a, at:Date.now()};
     net.room?.presence({act:{n, a}}).catch(() => toast('Connection hiccup. Try that again'));
     return render();
   }
   eng.apply(G, me, a); G.v++;
+  if (G.clock?.[me]){ G.clock = {...G.clock}; delete G.clock[me]; }
   if (mode === 'host') persist(); else store.set(LKEY(), G);
   render();
 }
@@ -768,9 +852,10 @@ const LKEY = () => GID === 'dealmaker' ? 'dm-local' : GID + '-local';
 // A fresh round with the same seats (and the table's code, settings and running totals when online).
 function rematch(){
   const late = (G.late || []).filter(l => !P(G, l.id));
-  const seats = [...G.players, ...late].map(({id, name}) => ({id, name})).slice(0, ENG[GID].max);
+  const seats = [...G.players.filter(p => !G.gone?.[p.id]), ...late].map(({id, name}) => ({id, name})).slice(0, ENG[GID].max);
+  if (seats.length < ENG[GID].min) return toast(`Not enough players left for another round (${ENG[GID].min} needed)`);
   const totals = {...(G.totals || {})}; late.forEach(l => { totals[l.id] = l.score; });
-  const keep = {game:GID, cfg:G.cfg, totals, round:G.round, pay:G.pay, wait:G.wait, nolate:G.nolate};
+  const keep = {game:GID, cfg:G.cfg, totals, round:G.round, pay:G.pay, wait:G.wait, nolate:G.nolate, timer:G.timer};
   if (mode === 'host') Object.assign(keep, {code:G.code, host:G.host, ack:G.ack});
   if (mode === 'local' && G.host) keep.host = G.host;
   G = {...ENG[GID].newGame(seats, keep), v:(G.v || 0) + 1};
@@ -804,22 +889,31 @@ function hostTick(){
       G.wait = {...(G.wait || {}), [pr.pid]:{name}}; changed = true;
       log(G, `${name} asks to join`);
     }
+    const kv = pr.kv, v = G.vote;
+    if (kv && v && kv.id === v.id && voters(G).includes(pr.pid) && !v.yes[pr.pid] && !v.no[pr.pid]){
+      G.vote = {...v, [kv.yes ? 'yes' : 'no']:{...v[kv.yes ? 'yes' : 'no'], [pr.pid]:true}}; tally(); changed = true;
+    }
     const a = pr.act;
     if (a && typeof a.n === 'number' && a.n > (G.ack[pr.pid] || 0)){
       G.ack[pr.pid] = a.n;
-      const err = G.phase !== 'lobby' ? ENG[GID].apply(G, pr.pid, a.a) : 'The game hasn’t started';
+      const err = G.gone?.[pr.pid] ? 'You were voted out of this game' : G.phase !== 'lobby' ? ENG[GID].apply(G, pr.pid, a.a) : 'The game hasn’t started';
       if (err){ G.errs = {...(G.errs || {}), [pr.pid]:{n:a.n, msg:err}}; }
+      else if (G.clock?.[pr.pid]){ G.clock = {...G.clock}; delete G.clock[pr.pid]; }
       changed = true;
     }
   }
   if (changed){ G.v++; persist(); }
   render();
 }
+// The host's phone says it's alive every 10 seconds; a phone that's locked or in another app goes quiet.
+let hostBeat = {n:null, at:Date.now()}, lastBeat = 0;
+const hostAway = () => mode === 'guest' && !!net.room && (!net.room.peers().some(p => p.presence?.host === true) || Date.now() - hostBeat.at > 30000);
 let refetching = false;
 function guestTick(){
   if (!net.room || mode !== 'guest') return;
   const h = net.room.peers().find(p => p.presence?.host === true);
-  ui.hostOnline = !!h;
+  if (h?.presence.beat !== hostBeat.n){ hostBeat = {n:h?.presence.beat, at:Date.now()}; }
+  ui.hostOnline = !hostAway();
   if (h && h.presence.v > (G?.v || 0) && !refetching){
     refetching = true;
     net.doc.get().then(sn => { if (sn.exists) take(sn.data().state); }).catch(() => {}).finally(() => { refetching = false; });
@@ -830,6 +924,7 @@ function take(st){
   if (mode !== 'guest' || !st || st.v <= (G?.v || 0)) return;
   if (G?.phase === 'lobby' && st.phase === 'play') dealAnim = true;
   G = clone(st);
+  if (G.now && G.clock) skew = G.now - Date.now();
   if (opt && (G.ack?.[me] || 0) >= opt.n) opt = null;
   render();
 }
@@ -844,7 +939,7 @@ async function hostTable(){
   const name = form.name.trim(); if (!name) return toast('Enter your name first');
   const code = rid(5, 'ABCDEFGHJKMNPQRSTUVWXYZ23456789');
   mode = 'host'; opt = null;
-  G = {game:GID, phase:'lobby', code, host:me, v:1, players:[{id:me, name}], ack:{}, log:[], cfg:ENG[GID].cfg ? {...ENG[GID].cfg} : undefined};
+  G = {game:GID, phase:'lobby', code, host:me, v:1, players:[{id:me, name}], ack:{}, log:[], cfg:ENG[GID].cfg ? {...ENG[GID].cfg} : undefined, timer:ENG[GID].timeout ? store.get('turn-timer', 0) : 0};
   net.doc = net.db.doc('tables/' + code);
   try { await net.doc.set({state:G}); }
   catch { mode = null; G = null; return toast('Couldn’t create the table. Check your connection and try again.'); }
@@ -946,6 +1041,20 @@ const H = {
   },
   latedeny:d => { const wait = {...(G.wait || {})}; delete wait[d.id]; G.wait = wait; G.nolate = [...(G.nolate || []), d.id]; lateSave(); },
   lateremove:d => { G.late = (G.late || []).filter(l => l.id !== d.id); lateSave(); },
+  players:() => { ui.modal = 'players'; render(); },
+  votecall:d => {
+    if (mode !== 'host' || G.vote || !playing(G)) return;
+    const name = P(G, d.id)?.name || 'Player';
+    G.vote = {id:rid(6), target:d.id, name, yes:{[me]:true}, no:{}, until:Date.now() + 60000};
+    log(G, `${P(G, me).name} called a vote to remove ${name}`, 'big', {title:'Table vote', sub:`Remove ${name}?`});
+    ui.modal = null; tally(); G.v++; persist(); render();
+  },
+  vote:d => {
+    const v = G.vote; if (!v) return;
+    if (mode === 'host'){ G.vote = {...v, [d.yes ? 'yes' : 'no']:{...v[d.yes ? 'yes' : 'no'], [me]:true}}; tally(); G.v++; persist(); return render(); }
+    myVote = v.id; net.room?.presence({kv:{id:v.id, yes:!!d.yes}}).catch(() => toast('Connection hiccup. Try that again')); render();
+  },
+  votestop:() => { if (mode !== 'host' || !G.vote) return; log(G, `Vote on ${G.vote.name} cancelled`); G.vote = null; G.v++; persist(); render(); },
   paysaid:() => { ui.said = true; net.room?.presence({said:true}).catch(() => toast('Connection hiccup. Try that again')); render(); },
   open:d => { if (ENG[d.game]){ GID = d.game; screen = 'home'; ui = freshUI(); dealAnim = false; render(); scrollTo(0, 0); } },
   hub:() => { screen = 'hub'; render(); scrollTo(0, 0); },
@@ -980,6 +1089,7 @@ app.addEventListener('input', e => {
 app.addEventListener('change', e => {
   const t = e.target;
   if (t.dataset.payqr != null) return uploadQR(t.files?.[0]);
+  if (t.dataset.timer != null && mode === 'host' && G?.phase === 'lobby'){ G.timer = +t.value; store.set('turn-timer', G.timer); G.v++; persist(); return render(); }
   const k = t.dataset.pay;
   if (k && mode === 'host' && G?.phase === 'lobby'){
     G.pay = {...G.pay, [k]:k === 'fee' ? Math.max(0, Math.round(+t.value) || 0) : t.value.trim().slice(0, 40)};

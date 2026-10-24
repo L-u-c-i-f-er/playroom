@@ -84,7 +84,7 @@ const LC = (() => {
         if (s.avail == null || !s.pile.includes(s.avail)) return 'There is no open card to pick';
         s.pile.splice(s.pile.indexOf(s.avail), 1); p.hand.push(s.avail); log(s, `${p.name} picked ${lbl(s.avail)}`);
       } else {
-        if (!s.deck.length){ const keep = s.lastThrow; s.deck = shuffle(s.pile.filter(id => !keep.includes(id))); s.pile = [...keep]; log(s, 'The open pile was shuffled into a new deck'); }
+        if (!s.deck.length){ const keep = s.lastThrow; s.deck = shuffle(s.pile.filter(id => !keep.includes(id)), reseed(s)); s.pile = [...keep]; log(s, 'The open pile was shuffled into a new deck'); }
         if (!s.deck.length) return 'No cards left to draw';
         p.hand.push(s.deck.pop()); log(s, `${p.name} drew from the deck`);
       }
@@ -245,7 +245,14 @@ const LC = (() => {
   });
 
   const late = {unit:'points', why:'the highest score still in', score:s => Math.max(0, ...s.players.filter(p => (s.totals[p.id] || 0) < s.cfg.limit).map(p => s.totals[p.id] || 0))};
-  return {name:'Least Count', min:2, max:6, cfg, late, newGame, apply, needs, home, view, rules, art, total, val, rank,
+  // Out of time: throw the highest card, then pick from the closed deck.
+  const timeout = (s, pid) => {
+    const p = P(s, pid);
+    if (s.step !== 'throw') return {t:'pick', from:'deck'};
+    const hi = [...p.hand].sort((a, b) => val(s, b) - val(s, a))[0];
+    return hi == null ? {t:'show'} : {t:'throw', cards:[hi]};
+  };
+  return {name:'Least Count', min:2, max:6, cfg, late, timeout, newGame, apply, needs, home, view, rules, art, total, val, rank,
     lobby:(s, host) => host
       ? `<div class="row"><label class="muted" for="lccap">Players are out at</label>${capInput('lccap', 'limit', s.cfg?.limit ?? cfg.limit, [50, 100, 150, 200], 20, 1000)}<span class="muted">points</span></div>`
       : `<p class="muted">Players are out at ${s.cfg?.limit || cfg.limit} points</p>`};

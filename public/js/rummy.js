@@ -149,7 +149,7 @@ const RUM = (() => {
         if (isWild(s, top)) return 'Jokers can’t be picked from the open pile';
         p.hand.push(s.pile.pop()); log(s, `${p.name} picked ${lbl(top)} from the open pile`);
       } else {
-        if (!s.deck.length && s.pile.length > 1){ s.deck = shuffle(s.pile.splice(0, s.pile.length - 1)); log(s, 'The open pile was shuffled into a new deck'); }
+        if (!s.deck.length && s.pile.length > 1){ s.deck = shuffle(s.pile.splice(0, s.pile.length - 1), reseed(s)); log(s, 'The open pile was shuffled into a new deck'); }
         if (!s.deck.length) return 'No cards left to draw';
         p.hand.push(s.deck.pop()); log(s, `${p.name} drew from the deck`);
       }
@@ -398,7 +398,14 @@ const RUM = (() => {
 
   // Joining a running game: pool rule, start level with the highest score still in.
   const late = {unit:'points', why:'the highest score still in', score:s => Math.max(0, ...s.players.filter(p => !s.cfg?.pool || (s.totals[p.id] || 0) < s.cfg.pool).map(p => s.totals[p.id] || 0))};
-  return {name:'Rummy', min:2, max:6, cfg, late, newGame, apply, needs, home, view, rules, art, classify, judge, score, auto, bySuit, card, isWild, pc,
+  // Out of time: show with an automatic arrangement, or draw from the deck and throw the costliest card.
+  const timeout = (s, pid) => {
+    const p = P(s, pid);
+    if (s.phase === 'show') return {t:'show', groups:auto(s, p.hand)};
+    if (s.step === 'draw') return {t:'draw', from:'deck'};
+    return {t:'discard', card:[...p.hand].sort((a, b) => pts(s, b) - pts(s, a))[0]};
+  };
+  return {name:'Rummy', min:2, max:6, cfg, late, timeout, newGame, apply, needs, home, view, rules, art, classify, judge, score, auto, bySuit, card, isWild, pc,
     lobby:(s, host) => host
       ? `<div class="row"><label class="muted" for="rcap">Pool: out at</label>${capInput('rcap', 'pool', s.cfg?.pool ?? cfg.pool, [0, 101, 201], 0, 1000)}<span class="muted">points · 0 for no limit</span></div>`
       : `<p class="muted">${s.cfg?.pool ? `Pool rummy: out at ${s.cfg.pool} points` : 'Points rummy: no limit'}</p>`};

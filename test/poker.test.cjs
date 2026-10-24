@@ -113,6 +113,7 @@ for (let g = 0; g < 120; g++){
     for (let step = 0; step < 500 && s.phase === 'play'; step++){
       const pid = PK.needs(s)[0], p = P(s, pid), toCall = s.bet - p.street, r = Math.random();
       assert.strictEqual(s.players.reduce((a, q) => a + q.stack + q.total, 0), total);
+      if (Math.random() < .1){ assert.strictEqual(PK.apply(s, pid, PK.timeout(s, pid)), undefined, 'timeout move'); continue; }
       if (r < .15 && toCall > 0) ok(s, pid, {t:'fold'});
       else if (r < .35 && PK.canRaise(s, p)){
         const max = p.street + p.stack, min = Math.min(s.bet + s.minRaise, max);

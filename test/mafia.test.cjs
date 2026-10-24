@@ -112,6 +112,7 @@ for (let g = 0; g < 600; g++){
   const s = MAF.newGame(seats(n), {cfg:{local:local ? 1 : 0}});
   for (let step = 0; step < 5000 && s.phase === 'play'; step++){
     const pid = MAF.needs(s)[0], live = s.players.filter(p => p.alive);
+    if (pid != null && Math.random() < .1){ assert.strictEqual(MAF.apply(s, pid, MAF.timeout(s, pid)), undefined, 'timeout move'); continue; }
     if (s.stage === 'roles'){ ok(s, pid, {t:'ready'}); continue; }
     if (s.stage === 'night'){
       const p = P(s, pid);

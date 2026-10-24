@@ -364,7 +364,8 @@ const PK = (() => {
     pkresume:() => { G = store.get('poker-local'); if (!G) return; mode = 'local'; ui = freshUI(); seenLog = -1; screen = 'game'; render(); },
   });
 
-  return {name:'Poker', min:2, max:9, cfg, late:{unit:'chips', why:'the starting chips', score:s => s.cfg.stack}, newGame, apply, needs, home, view, rules, art, best, eval5, cmp, canRaise, pot,
+  return {name:'Poker', min:2, max:9, cfg, late:{unit:'chips', why:'the starting chips', score:s => s.cfg.stack},
+    timeout:(s, pid) => s.bet > P(s, pid).street ? {t:'fold'} : {t:'check'}, newGame, apply, needs, home, view, rules, art, best, eval5, cmp, canRaise, pot,
     lobby:(s, host) => {
       const c = s.cfg || cfg;
       if (!host) return `<p class="muted">${fmt(c.stack)} chips each · blinds ${c.bb / 2}/${c.bb}</p>`;

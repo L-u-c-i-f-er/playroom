@@ -22,22 +22,34 @@ const PlayNet = (() => {
       };
       sock.onclose = () => {
         if (!ok){ if (ever) setTimeout(open, 3000); return reject(new Error('Game server unreachable')); }
-        ws = null;
-        for (const w of waits.values()) w.reject({code:'unavailable'}); waits.clear();
-        rooms.forEach(r => r.drop());
-        setTimeout(open, 1500);
+        lost(sock);
       };
     });
     opened.catch(() => {});
     return opened;
   }
-  function call(msg){
+  function lost(sock){
+    if (sock.lost) return;
+    sock.lost = true; try { sock.close(); } catch {}
+    if (ws === sock) ws = null;
+    for (const w of waits.values()) w.reject({code:'unavailable'}); waits.clear();
+    rooms.forEach(r => r.drop());
+    setTimeout(open, 1500);
+  }
+  // No answer in time means the connection died without closing (a phone call, a network switch, a phone
+  // waking up): drop it and reconnect, which also re-sends our presence and latest move.
+  function call(msg, ms = 15000){
     return opened.then(() => new Promise((resolve, reject) => {
       if (!ws) return reject({code:'unavailable'});
-      const id = ++seq; waits.set(id, {resolve, reject});
+      const id = ++seq, sock = ws, t = setTimeout(() => { waits.delete(id); reject({code:'timeout'}); lost(sock); }, ms);
+      waits.set(id, {resolve:v => { clearTimeout(t); resolve(v); }, reject:e => { clearTimeout(t); reject(e); }});
       ws.send(JSON.stringify({...msg, id}));
     }));
   }
+  const beat = () => { if (ws) call({t:'ping'}, 6000).catch(() => {}); };
+  setInterval(beat, 12000);
+  addEventListener('online', beat);
+  document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && beat());
   function onMessage(m){
     if (m.id && waits.has(m.id)){ const w = waits.get(m.id); waits.delete(m.id); m.error ? w.reject({code:m.error, message:m.error}) : w.resolve(m.data); return; }
     if (m.t === 'doc') docSubs.get(m.path)?.forEach(fn => fn(snap(m.data)));

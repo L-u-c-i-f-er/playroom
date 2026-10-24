@@ -64,6 +64,7 @@ for (let m = 0; m < 150; m++){
       const all = [...s.deck, ...s.pile, s.joker, ...s.players.flatMap(p => p.hand)];
       assert.strictEqual(all.length, size); assert.strictEqual(new Set(all).size, size);
       const pid = LC.needs(s)[0], p = P(s, pid);
+      if (Math.random() < .1){ assert.strictEqual(LC.apply(s, pid, LC.timeout(s, pid)), undefined, 'timeout move'); continue; }
       if (s.step === 'throw'){
         // An empty hand (threw everything, then matched and skipped picking) can only Show.
         if (LC.total(s, p.hand) <= 10 && (!p.hand.length || Math.random() < .5)){ assert.strictEqual(LC.apply(s, pid, {t:'show'}), undefined); break; }

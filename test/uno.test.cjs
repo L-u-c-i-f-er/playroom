@@ -54,10 +54,12 @@ assert.strictEqual(F.pts({c:null, v:'wdc'}), 60); assert.strictEqual(F.pts({c:4,
   // Skip, Reverse (and Reverse as Skip with two), Draw Two.
   const bs = id(U, 0, 3, 'skip'), br = id(U, 0, 3, 'rev'), bd = id(U, 0, 3, 'd2');
   s = rig(U, 4, [[bs, b7], [], [], []], b5); U.apply(s, 'p0', {t:'play', card:bs}); assert.strictEqual(s.turn, 2);
+  assert(s.log.some(e => e.to?.[0] === 'p1' && /skipped you/.test(e.you)), 'the skipped player is told');
   s = rig(U, 4, [[br, b7], [], [], []], b5); U.apply(s, 'p0', {t:'play', card:br}); assert.strictEqual(s.turn, 3); assert.strictEqual(s.dir, -1);
   s = rig(U, 2, [[br, b7], [g2]], b5); U.apply(s, 'p0', {t:'play', card:br}); assert.strictEqual(s.turn, 0, 'two players: Reverse skips');
   s = rig(U, 3, [[bd, b7], [g2], [r5]], b5); U.apply(s, 'p0', {t:'play', card:bd});
   assert.strictEqual(s.players[1].hand.length, 3); assert.strictEqual(s.turn, 2);
+  assert(s.log.some(e => e.to?.[0] === 'p1' && /draw 2/.test(e.you)), 'the Draw Two victim is told');
 }
 
 // --- Wild Draw Four challenges
@@ -135,6 +137,7 @@ for (const [E, name] of [[U, 'uno'], [F, 'uno flip']]){
         const all = [...s.deck, ...s.pile, ...s.players.flatMap(p => p.hand)];
         assert.strictEqual(all.length, E.CARDS.length); assert.strictEqual(new Set(all).size, E.CARDS.length);
         const pid = E.needs(s)[0], p = P(s, pid), side = s.side;
+        if (Math.random() < .1){ assert.strictEqual(E.apply(s, pid, E.timeout(s, pid)), undefined, 'timeout move'); continue; }
         const miss = s.players.find(q => q.unoMiss && q.id !== pid);
         if (miss && Math.random() < .5){ assert.strictEqual(E.apply(s, pid, {t:'catch', target:miss.id}), undefined); catches++; continue; }
         if (s.pend){ const ch = Math.random() < .3; challenges += ch; assert.strictEqual(E.apply(s, pid, {t:ch ? 'challenge' : 'accept'}), undefined); continue; }
@@ -270,6 +273,7 @@ for (const [E, name] of [[U, 'uno'], [F, 'uno flip']]){
         assert.strictEqual(cards.length, 168); assert.strictEqual(new Set(cards).size, 168);
         const pid = N.needs(s)[0], p = P(s, pid);
         assert(!p.out, 'knocked-out players never act');
+        if (Math.random() < .1){ assert.strictEqual(N.apply(s, pid, N.timeout(s, pid)), undefined, 'timeout move'); continue; }
         if (s.roul){ ok(s, pid, {t:'roulette', color:Math.random() * 4 | 0}); continue; }
         const can = p.hand.filter(x => (s.step === 'play' || x === s.drawn) && N.legal(s, x));
         if (s.stack && can.length) stacks++;

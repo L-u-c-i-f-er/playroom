@@ -326,7 +326,14 @@ const MAF = (() => {
     mfresume:() => { G = store.get('mafia-local'); if (!G) return; mode = 'local'; ui = freshUI(); seenLog = -1; screen = 'game'; render(); },
   });
 
-  return {name:'Mafia', min:4, max:15, cfg, newGame, apply, needs, home, view, rules, art, ROLE,
+  // Out of time: ready up, make the first allowed night pick, or vote to skip.
+  const timeout = (s, pid) => {
+    const p = P(s, pid);
+    if (s.stage === 'roles') return {t:'ready'};
+    if (s.stage === 'night') return p.act != null ? {t:'done'} : {t:'night', target:s.players.find(q => okTarget(s, p, q))?.id};
+    return {t:'vote'};
+  };
+  return {name:'Mafia', min:4, max:15, cfg, timeout, newGame, apply, needs, home, view, rules, art, ROLE,
     lobby:(s, host) => {
       const c = s.cfg || cfg, n = s.players.length, auto = autoMafia(Math.max(n, 4));
       if (!host) return `<p class="muted">${c.mafia || `Auto (${auto})`} Mafia · Doctor ${c.doctor ? 'on' : 'off'} · Police ${c.police ? 'on' : 'off'}</p>`;
