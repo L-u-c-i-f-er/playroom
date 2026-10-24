@@ -110,6 +110,11 @@ for (let i = 0; i < 3000; i++){
   play(last, ['c']);
   assert.strictEqual(last.champion, 'a', 'c reaches 115, a is the last one under 101');
   assert.strictEqual(RUM.newGame(seats, {}).cfg.pool, 0, 'points rummy by default: no cap');
+  // someone joining mid-game is offered the highest score still in the pool
+  const mid = RUM.newGame(seats, {cfg:{pool:101}, totals:{a:40, b:110, c:75}});
+  assert.strictEqual(RUM.late.score(mid), 75, 'b is out at 110, so the highest still in is 75');
+  const join = RUM.newGame([...seats, {id:'d', name:'D'}], {cfg:{pool:101}, totals:{...mid.totals, d:75}});
+  assert.strictEqual(P(join, 'd').status, 'in'); assert.strictEqual(join.totals.d, 75); assert.strictEqual(P(join, 'd').hand.length, 13);
 }
 // --- Rummy random games: card conservation, legal flow, every deal finishes.
 let deals = 0, declared = 0;

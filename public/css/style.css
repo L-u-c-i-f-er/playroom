@@ -1166,3 +1166,10 @@ body[data-game="teenpatti"]{--ink:#170716;--brass:#e2b65b;--panel:rgba(40,10,38,
   .tp-mine .pc{--pw:52px}
 }
 @media (prefers-reduced-motion:reduce){ .tp-seat.up .tp-plate,.tp-mine.seen .pc{animation:none} }
+
+/* Joining mid-game: a small bar for spectators and the host, above the end-of-round sheet */
+.late-bar{position:fixed;left:max(14px,env(safe-area-inset-left,0px));bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:58;display:flex;align-items:center;gap:10px;max-width:calc(100vw - 28px);padding:8px;border-radius:14px;background:rgba(0,0,0,.72);border:1px solid var(--line);color:var(--text);font-size:14px;box-shadow:0 10px 30px rgba(0,0,0,.45)}
+.late-bar span{padding:0 6px}
+.late-scrim{z-index:60}
+.late-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid var(--line)}
+.late-row input:not(.cap-in){min-width:0;padding:9px 12px;border-radius:10px;border:1px solid var(--line);background:rgba(0,0,0,.3);color:var(--text);font:500 15px var(--body)}

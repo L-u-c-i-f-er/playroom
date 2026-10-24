@@ -396,7 +396,9 @@ const RUM = (() => {
     moveSel(viewState(), z.dataset.rdrop === 'new' ? 'new' : +z.dataset.rdrop, ids);
   });
 
-  return {name:'Rummy', min:2, max:6, cfg, newGame, apply, needs, home, view, rules, art, classify, judge, score, auto, bySuit, card, isWild, pc,
+  // Joining a running game: pool rule, start level with the highest score still in.
+  const late = {unit:'points', why:'the highest score still in', score:s => Math.max(0, ...s.players.filter(p => !s.cfg?.pool || (s.totals[p.id] || 0) < s.cfg.pool).map(p => s.totals[p.id] || 0))};
+  return {name:'Rummy', min:2, max:6, cfg, late, newGame, apply, needs, home, view, rules, art, classify, judge, score, auto, bySuit, card, isWild, pc,
     lobby:(s, host) => host
       ? `<div class="row"><label class="muted" for="rcap">Pool: out at</label>${capInput('rcap', 'pool', s.cfg?.pool ?? cfg.pool, [0, 101, 201], 0, 1000)}<span class="muted">points · 0 for no limit</span></div>`
       : `<p class="muted">${s.cfg?.pool ? `Pool rummy: out at ${s.cfg.pool} points` : 'Points rummy: no limit'}</p>`};

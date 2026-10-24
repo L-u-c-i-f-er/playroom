@@ -312,6 +312,50 @@ async function uploadQR(file){
   G.pay = {...G.pay, qr:v}; G.v++; persist(); render();
 }
 
+/* ---------- joining mid-game ----------
+   Long score games (Rummy, Least Count, the UNO games, Poker, Teen Patti) can take new players
+   between rounds. Online, a spectator asks to join; the host gives them a starting score (or
+   chips) and they're dealt in from the next round. On one device the host adds them by name. */
+const lateCan = s => !!ENG[GID]?.late && s.phase !== 'lobby' && !!s.players;
+function lateBar(s){
+  if (!lateCan(s) || ui.modal) return '';
+  const e = ENG[GID], late = s.late || [], wait = s.wait || {}, room = e.max - s.players.length - late.length;
+  if (mode === 'guest'){
+    if (P(s, me)) return '';
+    const mine = late.find(l => l.id === me);
+    return `<div class="late-bar">${mine ? `<span>You join next round with <b>${mine.score.toLocaleString()}</b> ${e.late.unit}.</span>`
+      : (s.nolate || []).includes(me) ? '<span>The host didn’t add you to this game.</span>'
+      : wait[me] || ui.asked ? '<span>Asked to join. Waiting for the host…</span>'
+      : room > 0 ? '<button class="btn small gold" data-do="lateask">Ask to join this game</button>' : '<span>The table is full.</span>'}</div>`;
+  }
+  const n = Object.keys(wait).length;
+  return `<div class="late-bar"><button class="btn small ${n ? 'gold' : ''}" data-do="lateopen">${n ? `${n} waiting to join` : 'Add a player'}${late.length ? ` · ${late.length} joining next round` : ''}</button></div>`;
+}
+function lateSheet(s){
+  const e = ENG[GID], late = s.late || [], wait = Object.entries(s.wait || {}), room = e.max - s.players.length - late.length;
+  const sug = Math.round(e.late.score(s)), field = (id, v) => `<input type="number" class="cap-in" id="${id}" min="0" step="1" inputmode="numeric" value="${v}" aria-label="Starting ${e.late.unit}">`;
+  return `<div class="scrim late-scrim"><div class="sheet" role="dialog" aria-modal="true"><div class="eyebrow">Joining mid-game</div><h2>Add players</h2>
+    <p class="lede">New players are dealt in from the next round, starting with the ${e.late.unit} you give them. Suggested: ${sug.toLocaleString()} (${e.late.why}).</p>
+    ${mode === 'local' ? `<div class="late-row"><input class="grow" id="late-name" maxlength="18" placeholder="Name" aria-label="New player’s name">${field('late-new', sug)}<button class="btn gold" data-do="lateadd" ${room > 0 ? '' : 'disabled'}>Add</button></div>`
+      : wait.length ? wait.map(([id, w]) => `<div class="late-row"><b class="grow">${esc(w.name)}</b>${field('late-' + id, sug)}<button class="btn small" data-do="latedeny" data-id="${esc(id)}">Decline</button><button class="btn small gold" data-do="lateadmit" data-id="${esc(id)}" ${room > 0 ? '' : 'disabled'}>Add</button></div>`).join('')
+      : '<p class="muted">Nobody is waiting. Friends who open this table’s code see an “Ask to join” button.</p>'}
+    ${s.pay?.on ? `<p class="muted">Paid table: collect the ₹${(+s.pay.fee || 0).toLocaleString('en-IN')} entry before you add someone.</p>` : ''}
+    ${late.length ? `<div class="field"><label>Joining next round</label>${late.map(l => `<div class="late-row"><span class="grow">${esc(l.name)}</span><span class="muted">${l.score.toLocaleString()} ${e.late.unit}</span><button class="tool" data-do="lateremove" data-id="${esc(l.id)}">Remove</button></div>`).join('')}</div>` : ''}
+    ${room <= 0 ? `<p class="warn">The table is full (${e.max} players).</p>` : ''}
+    <div class="acts"><button class="btn" data-do="closemodal">Done</button></div></div></div>`;
+}
+const lateSave = () => { G.v++; if (mode === 'host') persist(); else store.set(LKEY(), G); render(); };
+function lateAdmit(id, name, el){
+  const v = Math.round(+el?.value);
+  if (!el || el.value === '' || !(v >= 0)) return toast('Type a starting score of 0 or more');
+  if ((G.late || []).length + G.players.length >= ENG[GID].max) return toast('The table is full');
+  G.late = [...(G.late || []), {id, name, score:v}];
+  const wait = {...(G.wait || {})}; delete wait[id]; G.wait = wait;
+  if (G.pay?.on) G.pay = {...G.pay, paid:{...(G.pay.paid || {}), [id]:true}};
+  log(G, `${name} will join next round with ${v.toLocaleString()} ${ENG[GID].late.unit}`);
+  lateSave();
+}
+
 function vGame(s){
   if (s.phase === 'lobby') return vLobby(s);
   const meP = P(s, me), cur = s.players[s.turn], myTurn = s.phase === 'play' && cur.id === me;
@@ -663,6 +707,9 @@ function renderNow(){
   document.body.dataset.game = screen === 'hub' ? '' : GID;   // lets each game theme the page behind it
   app.innerHTML = screen === 'hub' ? vHub() : screen === 'home' || !s ? ENG[GID].home() : s.phase === 'lobby' ? vLobby(s) : ENG[GID].view(s);
   if (ui.modal === 'rules' && screen !== 'game') app.insertAdjacentHTML('beforeend', (ENG[GID].rules || vRules)());
+  if (screen === 'game' && s && lateCan(s)){
+    app.insertAdjacentHTML('beforeend', ui.modal === 'late' && mode !== 'guest' ? lateSheet(s) : lateBar(s));
+  }
   if (focusId){ const f = document.getElementById(focusId); if (f){ f.focus(); try { f.setSelectionRange(selStart, selStart); } catch {} } }
   if (s && screen === 'game') events(s);
   const flown = GID === 'dealmaker' && s && screen === 'game' && s.players && s.phase !== 'lobby' ? flights(s, before) : new Set();
@@ -720,8 +767,10 @@ function send(a, keepUI = false){
 const LKEY = () => GID === 'dealmaker' ? 'dm-local' : GID + '-local';
 // A fresh round with the same seats (and the table's code, settings and running totals when online).
 function rematch(){
-  const seats = G.players.map(({id, name}) => ({id, name}));
-  const keep = {game:GID, cfg:G.cfg, totals:G.totals, round:G.round, pay:G.pay};
+  const late = (G.late || []).filter(l => !P(G, l.id));
+  const seats = [...G.players, ...late].map(({id, name}) => ({id, name})).slice(0, ENG[GID].max);
+  const totals = {...(G.totals || {})}; late.forEach(l => { totals[l.id] = l.score; });
+  const keep = {game:GID, cfg:G.cfg, totals, round:G.round, pay:G.pay, wait:G.wait, nolate:G.nolate};
   if (mode === 'host') Object.assign(keep, {code:G.code, host:G.host, ack:G.ack});
   if (mode === 'local' && G.host) keep.host = G.host;
   G = {...ENG[GID].newGame(seats, keep), v:(G.v || 0) + 1};
@@ -750,6 +799,10 @@ function hostTick(){
       if (!seat && pr.join === G.code && G.players.length < ENG[GID].max && !(G.kicked || []).includes(pr.pid)){ G.players.push({id:pr.pid, name}); changed = true; }
       else if (seat && seat.name !== name){ seat.name = name; changed = true; }
       if (seat && pr.said && G.pay?.on && !G.pay.said?.[pr.pid]){ G.pay = {...G.pay, said:{...(G.pay.said || {}), [pr.pid]:true}}; changed = true; }
+    }
+    if (pr.ask && lateCan(G) && !P(G, pr.pid) && !G.wait?.[pr.pid] && !(G.late || []).some(l => l.id === pr.pid) && !(G.nolate || []).includes(pr.pid)){
+      G.wait = {...(G.wait || {}), [pr.pid]:{name}}; changed = true;
+      log(G, `${name} asks to join`);
     }
     const a = pr.act;
     if (a && typeof a.n === 'number' && a.n > (G.ack[pr.pid] || 0)){
@@ -882,6 +935,17 @@ const H = {
     if (paid[d.id]) delete paid[d.id]; else paid[d.id] = true;
     G.pay = {...G.pay, paid}; G.v++; persist(); render();
   },
+  lateask:() => { ui.asked = true; net.room?.presence({ask:true}).catch(() => toast('Connection hiccup. Try that again')); render(); },
+  lateopen:() => { ui.modal = 'late'; render(); },
+  lateadmit:d => lateAdmit(d.id, G.wait?.[d.id]?.name || 'Player', document.getElementById('late-' + d.id)),
+  lateadd:() => {
+    const name = document.getElementById('late-name')?.value.trim().slice(0, 18);
+    if (!name) return toast('Type the new player’s name');
+    let k = G.players.length + (G.late || []).length; while (P(G, 'p' + k) || (G.late || []).some(l => l.id === 'p' + k)) k++;
+    lateAdmit('p' + k, name, document.getElementById('late-new'));
+  },
+  latedeny:d => { const wait = {...(G.wait || {})}; delete wait[d.id]; G.wait = wait; G.nolate = [...(G.nolate || []), d.id]; lateSave(); },
+  lateremove:d => { G.late = (G.late || []).filter(l => l.id !== d.id); lateSave(); },
   paysaid:() => { ui.said = true; net.room?.presence({said:true}).catch(() => toast('Connection hiccup. Try that again')); render(); },
   open:d => { if (ENG[d.game]){ GID = d.game; screen = 'home'; ui = freshUI(); dealAnim = false; render(); scrollTo(0, 0); } },
   hub:() => { screen = 'hub'; render(); scrollTo(0, 0); },

@@ -496,7 +496,8 @@ function makeUno(kind){
     return `<div class="curtain"><div><div class="eyebrow">Pass the device</div><h2>${avatar(s, p)} ${esc(p.name)}</h2><p class="muted">${s.pend ? `${esc(P(s, s.pend.by).name)} played ${NAME[s.pend.v]} on you` : s.roul ? 'Color Roulette: pick a color' : s.stack ? `You face +${s.stack.n}` : 'Your turn'}</p><br><button class="btn gold" data-do="reveal">I’m ${esc(p.name)}. Show my cards</button></div></div>`;
   }
 
-  return {name:NICE, nm, min:2, max:nm ? 6 : 10, cfg, CARDS, STACK, newGame, apply, needs, home, view, rules, art, face, canPlay, legal, pts,
+  const late = {unit:'points', why:'the lowest score at the table', score:s => Math.min(...s.players.map(p => s.totals[p.id] || 0))};
+  return {name:NICE, nm, late, min:2, max:nm ? 6 : 10, cfg, CARDS, STACK, newGame, apply, needs, home, view, rules, art, face, canPlay, legal, pts,
     lobby:(s, host) => host
       ? `<div class="row"><label class="muted" for="unocap">Play to</label>${capInput('unocap', 'target', s.cfg?.target ?? cfg.target, TARGETS.map(t => t[0]), 1, 10000)}<span class="muted">points · 1 for a single round</span></div>`
       : `<p class="muted">Playing ${(s.cfg?.target ?? cfg.target) <= 1 ? 'a single round' : `to ${(s.cfg?.target ?? cfg.target).toLocaleString()} points`}</p>`};

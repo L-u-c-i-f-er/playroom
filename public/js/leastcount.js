@@ -244,7 +244,8 @@ const LC = (() => {
     lcresume:() => { G = store.get('leastcount-local'); if (!G) return; mode = 'local'; ui = freshUI(); seenLog = -1; screen = 'game'; render(); },
   });
 
-  return {name:'Least Count', min:2, max:6, cfg, newGame, apply, needs, home, view, rules, art, total, val, rank,
+  const late = {unit:'points', why:'the highest score still in', score:s => Math.max(0, ...s.players.filter(p => (s.totals[p.id] || 0) < s.cfg.limit).map(p => s.totals[p.id] || 0))};
+  return {name:'Least Count', min:2, max:6, cfg, late, newGame, apply, needs, home, view, rules, art, total, val, rank,
     lobby:(s, host) => host
       ? `<div class="row"><label class="muted" for="lccap">Players are out at</label>${capInput('lccap', 'limit', s.cfg?.limit ?? cfg.limit, [50, 100, 150, 200], 20, 1000)}<span class="muted">points</span></div>`
       : `<p class="muted">Players are out at ${s.cfg?.limit || cfg.limit} points</p>`};
