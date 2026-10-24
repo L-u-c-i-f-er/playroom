@@ -142,10 +142,14 @@ const GAMES = [
    tags:['2–10 players', 'First to 500', 'Online', 'Pass & play'], art:() => ENG.uno.art()},
   {id:'unoflip', name:'UNO Flip', blurb:'Two-sided UNO. One Flip card turns everything to the Dark Side: Draw Five, Skip Everyone, Wild Draw Color.',
    tags:['2–10 players', 'Light & Dark sides', 'Online', 'Pass & play'], art:() => ENG.unoflip.art()},
+  {id:'unonm', name:'UNO No Mercy', blurb:'Stack Draw cards past +10, swap hands on a 7, spin the Color Roulette. Hit 25 cards and you’re out.',
+   tags:['2–6 players', 'Stacking', 'Mercy rule', 'Online', 'Pass & play'], art:() => ENG.unonm.art()},
   {id:'mafia', name:'Mafia', blurb:'Draw an Ace and you’re Mafia. Secret picks by night, accusations and a vote by day. The page is the moderator.',
    tags:['4–15 players', 'Social deduction', 'Online', 'Pass & play'], art:() => MAF.art()},
   {id:'solitaire', name:'Solitaire', blurb:'Klondike, FreeCell and Spider for one. Unlimited undo, and your game saves itself.',
    tags:['1 player', 'Klondike', 'FreeCell', 'Spider'], art:() => SOL.art()},
+  {id:'poker', name:'Poker', blurb:'No-limit Texas Hold’em with play-money chips. Blinds, side pots and a showdown under the lights.',
+   tags:['2–9 players', 'Hold’em', 'Online', 'Pass & play'], art:() => PK.art()},
 ];
 // Each game plugs in here: rules engine (newGame/apply/needs) plus its home and table views.
 const ENG = {dealmaker:{name:'Dealmaker', min:2, max:5, newGame, apply, needs, home:() => vHome(), view:s => vGame(s)}};
@@ -552,7 +556,7 @@ function flights(s, before){
   const dealing = dealAnim;
   if (dealing){ p0 = clone(s); p0.players.forEach(p => { p.hand = []; }); dealAnim = false; }
   if (!p0 || (s.ln || 0) < (p0.ln || 0) || p0.players.map(p => p.id).join() !== s.players.map(p => p.id).join()) return done;
-  const deck = rectOf('#deck .card, #deck .uc'); if (!deck) return done;
+  const deck = rectOf('#deck .card, #deck .uc, #deck .pkc'); if (!deck) return done;
   const from0 = ctr(deck), stag = dealing ? 85 : 140;
   let i = 0;
   for (const p of s.players){
@@ -601,7 +605,7 @@ function render(){
   const meP = s.players && P(s, me);
   app.querySelectorAll('[data-cid]').forEach(el => {
     const b = el.getBoundingClientRect(), id = el.dataset.cid;
-    if (flown.has(id)) return;
+    if (flown.has(id) || !b.width) return;
     let a = before.get(id);
     if (!a){
       const fromDeck = meP?.hand.includes(+id);

@@ -156,3 +156,134 @@ for (const [E, name] of [[U, 'uno'], [F, 'uno flip']]){
   }
   console.log(`ok: ${name} — rules verified; ${matches} random matches over ${rounds} rounds (${flips} flips, ${challenges} challenges, ${catches} UNO catches)`);
 }
+
+// --- UNO Show 'Em No Mercy
+{
+  const N = ENG.unonm, nid = (c, v, skip = []) => id(N, 0, c, v, skip);
+  const ok = (s, pid, a) => assert.strictEqual(N.apply(s, pid, a), undefined, JSON.stringify(a));
+  const all = s => [...s.deck, ...s.pile, ...s.aside, ...s.players.flatMap(p => p.hand)];
+  // deck: 168 cards
+  assert.strictEqual(N.CARDS.length, 168);
+  assert.strictEqual(count(N, 0, f => f.v === '0'), 4);
+  assert.strictEqual(count(N, 0, f => f.v === '7'), 8);
+  for (const v of ['skip', 'rev', 'd2', 'd4', 'skipall', 'discard']) assert.strictEqual(count(N, 0, f => f.v === v), 12, v);
+  for (const v of ['wild', 'wrd4', 'wd6', 'wd10', 'roul']) assert.strictEqual(count(N, 0, f => f.v === v && f.c == null), 4, v);
+  assert.strictEqual(N.max, 6);
+  const fresh = N.newGame(seats(4));
+  assert(/^\d$/.test(N.face(fresh, fresh.pile[0]).v), 'only a number card starts the pile');
+  assert.strictEqual(fresh.cfg.target, 1000);
+
+  const r5 = nid(0, '5'), r9 = nid(0, '9'), b5 = nid(3, '5'), g3 = nid(2, '3'), y1 = nid(1, '1');
+  // Stacking: equal or higher, any color; the one who can't takes the lot
+  {
+    const d2r = nid(0, 'd2'), d4b = nid(3, 'd4'), w6 = nid(null, 'wd6'), d2g = nid(2, 'd2');
+    const s = rig(N, 3, [[d2r, r9], [d4b, g3], [d2g, y1]], r5);
+    ok(s, 'p0', {t:'play', card:d2r});
+    assert.deepStrictEqual(s.stack, {n:2, last:2}); assert.strictEqual(s.turn, 1);
+    assert(N.apply(s, 'p1', {t:'play', card:g3}).includes('Stack'), 'only a draw card answers a stack');
+    ok(s, 'p1', {t:'play', card:d4b});
+    assert.deepStrictEqual(s.stack, {n:6, last:4});
+    assert(N.apply(s, 'p2', {t:'play', card:d2g}).includes('+4 or higher'), 'a +2 can’t go on a +4');
+    ok(s, 'p2', {t:'draw'});
+    assert.strictEqual(s.players[2].hand.length, 8, 'takes 6'); assert.strictEqual(s.stack, null); assert.strictEqual(s.turn, 0);
+    const t = rig(N, 2, [[nid(0, 'd4'), r9], [w6, g3]], r5);
+    ok(t, 'p0', {t:'play', card:nid(0, 'd4')}); ok(t, 'p1', {t:'play', card:w6, color:2});
+    assert.deepStrictEqual(t.stack, {n:10, last:6}); assert.strictEqual(t.color, 2);
+  }
+  // Wild Reverse Draw 4 with two players comes back at you
+  {
+    const wr = nid(null, 'wrd4'), s = rig(N, 2, [[wr, r9], [g3]], r5);
+    ok(s, 'p0', {t:'play', card:wr, color:0});
+    assert.strictEqual(s.turn, 0); assert.deepStrictEqual(s.stack, {n:4, last:4});
+    ok(s, 'p0', {t:'draw'}); assert.strictEqual(s.players[0].hand.length, 5);
+    const t = rig(N, 3, [[wr, r9], [g3], [y1]], r5);
+    ok(t, 'p0', {t:'play', card:wr, color:0});
+    assert.strictEqual(t.dir, -1); assert.strictEqual(t.turn, 2, 'next in the new direction');
+  }
+  // Draw until playable, then that card must be played
+  {
+    const s = rig(N, 2, [[g3, y1], [b5]], r9);
+    s.deck.push(r5, nid(2, '8'), nid(1, '4'));   // pops 4y, 8g, then 5r (red matches)
+    assert(N.apply(rig(N, 2, [[r5 + 0, y1], [b5]], r9), 'p0', {t:'draw'}).includes('can play'), 'no drawing while holding a match');
+    ok(s, 'p0', {t:'draw'});
+    assert.strictEqual(s.players[0].hand.length, 5); assert.strictEqual(s.step, 'drawn'); assert.strictEqual(s.drawn, r5);
+    assert(N.apply(s, 'p0', {t:'pass'}).includes('play the card you drew'));
+    assert(N.apply(s, 'p0', {t:'play', card:g3}).includes('only play the card you drew'));
+    ok(s, 'p0', {t:'play', card:r5});
+  }
+  // Mercy rule: 25 cards and you're out; last one standing wins with 250 per knockout
+  {
+    const s = rig(N, 3, [[nid(0, 'd2'), r9], Array.from({length:23}, (_, k) => k + 100), [y1, g3]], r5);
+    const v = s.players[1].hand; s.deck = s.deck.filter(x => !v.includes(x));
+    ok(s, 'p0', {t:'play', card:nid(0, 'd2')}); ok(s, 'p1', {t:'draw'});
+    assert(s.players[1].out); assert.strictEqual(s.players[1].hand.length, 0); assert.strictEqual(s.aside.length, 25);
+    assert.strictEqual(s.turn, 2, 'turn skips the knocked-out player'); assert.strictEqual(s.phase, 'play');
+    assert(N.apply(s, 'p1', {t:'draw'}).includes('out'));
+    const t = rig(N, 2, [[nid(0, 'd4'), r9], Array.from({length:22}, (_, k) => k + 100)], r5);
+    t.deck = t.deck.filter(x => !t.players[1].hand.includes(x));
+    ok(t, 'p0', {t:'play', card:nid(0, 'd4')}); ok(t, 'p1', {t:'draw'});
+    assert.strictEqual(t.phase, 'over'); assert.strictEqual(t.winner, 'p0');
+    assert.strictEqual(t.gain, 250, 'knockout bonus; the knocked-out hand doesn’t count');
+  }
+  // 7 swaps hands with a chosen player; 0 passes every hand along
+  {
+    const r7 = nid(0, '7'), s = rig(N, 3, [[r7, g3, y1], [b5], [r9, nid(2, '9')]], r5);
+    assert(N.apply(s, 'p0', {t:'play', card:r7}).includes('swap'));
+    ok(s, 'p0', {t:'play', card:r7, target:'p2'});
+    assert.deepStrictEqual(s.players[0].hand, [r9, nid(2, '9')]); assert.deepStrictEqual(s.players[2].hand, [g3, y1]);
+    const r0 = nid(0, '0'), t = rig(N, 3, [[r0, g3], [b5], [r9, y1]], r5);
+    ok(t, 'p0', {t:'play', card:r0});
+    assert.deepStrictEqual(t.players.map(p => p.hand), [[r9, y1], [g3], [b5]], 'clockwise: each hand moves one seat on');
+  }
+  // Discard All takes every card of its color with it
+  {
+    const da = nid(0, 'discard'), s = rig(N, 2, [[da, r9, nid(0, '2'), g3], [b5]], r5);
+    ok(s, 'p0', {t:'play', card:da});
+    assert.deepStrictEqual(s.players[0].hand, [g3]); assert.strictEqual(s.pile.at(-1), da); assert.strictEqual(s.pile.length, 4);
+    const t = rig(N, 2, [[da, r9], [b5, g3]], r5);
+    ok(t, 'p0', {t:'play', card:da}); assert.strictEqual(t.phase, 'over', 'Discard All can win the round');
+  }
+  // Color Roulette: the victim names the color and turns cards until it shows
+  {
+    const ro = nid(null, 'roul'), s = rig(N, 3, [[ro, r9], [b5], [y1]], r5);
+    ok(s, 'p0', {t:'play', card:ro});
+    assert.deepStrictEqual(N.needs(s), ['p1']);
+    assert(N.apply(s, 'p1', {t:'play', card:b5}).includes('roulette'));
+    s.deck.push(nid(2, '2'), nid(null, 'wild'), nid(1, '6'));   // 6y, wild (doesn't count), 2g
+    ok(s, 'p1', {t:'roulette', color:2});
+    assert.strictEqual(s.players[1].hand.length, 4); assert.strictEqual(s.color, 2); assert.strictEqual(s.turn, 2, 'victim loses their turn');
+  }
+  // Skip Everyone, Reverse with two
+  {
+    const sa = nid(0, 'skipall'), s = rig(N, 3, [[sa, r9], [b5], [y1]], r5);
+    ok(s, 'p0', {t:'play', card:sa}); assert.strictEqual(s.turn, 0);
+  }
+  // Random matches: every card accounted for, someone always wins
+  let matches = 0, rounds = 0, kos = 0, stacks = 0;
+  for (let m = 0; m < 40; m++){
+    const n = 2 + m % 5;
+    let extra = {cfg:{target:1000}}, s;
+    for (let r = 0; r < 60; r++){
+      s = N.newGame(seats(n), extra); rounds++;
+      for (let step = 0; step < 5000 && s.phase === 'play'; step++){
+        const cards = all(s);
+        assert.strictEqual(cards.length, 168); assert.strictEqual(new Set(cards).size, 168);
+        const pid = N.needs(s)[0], p = P(s, pid);
+        assert(!p.out, 'knocked-out players never act');
+        if (s.roul){ ok(s, pid, {t:'roulette', color:Math.random() * 4 | 0}); continue; }
+        const can = p.hand.filter(x => (s.step === 'play' || x === s.drawn) && N.legal(s, x));
+        if (s.stack && can.length) stacks++;
+        if (can.length && (s.step === 'drawn' || !s.stack || Math.random() < .7)){
+          const card = can[Math.random() * can.length | 0], f = N.face(s, card);
+          const others = s.players.filter(q => q !== p && !q.out);
+          ok(s, pid, {t:'play', card, color:Math.random() * 4 | 0, target:others[Math.random() * others.length | 0].id, uno:Math.random() < .9});
+        } else ok(s, pid, {t:'draw'});
+      }
+      assert.strictEqual(s.phase, 'over', 'round ended');
+      kos += s.ko;
+      if (s.champion){ matches++; break; }
+      extra = {cfg:s.cfg, totals:s.totals, round:s.round};
+    }
+  }
+  console.log(`ok: uno no mercy — rules verified; ${matches} random matches over ${rounds} rounds (${kos} mercy knockouts, ${stacks} stacking chances)`);
+}

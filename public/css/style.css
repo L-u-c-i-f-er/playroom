@@ -739,7 +739,7 @@ body[data-game="solitaire"]{background:url("data:image/svg+xml,%3Csvg xmlns='htt
 .sol .pc.red{color:#c0272d}
 .sol .pc.down{background:repeating-linear-gradient(45deg,transparent 0 6px,rgba(214,180,106,.4) 6px 7px),repeating-linear-gradient(-45deg,transparent 0 6px,rgba(214,180,106,.4) 6px 7px),linear-gradient(#22397e,#15265a);
   box-shadow:inset 0 0 0 calc(var(--pw) * .05) #fdfaf2,0 0 0 1px rgba(0,0,0,.35),0 2px 5px rgba(0,0,0,.3)}
-.sol .pc.slot{background:rgba(0,0,0,.1);box-shadow:inset 0 0 0 2px rgba(255,255,255,.22);color:rgba(255,255,255,.3);font:400 calc(var(--pw) * .3)/1 'Libre Baskerville',serif}
+.sol .pc.slot{margin:0;transform:none;background:rgba(0,0,0,.1);box-shadow:inset 0 0 0 2px rgba(255,255,255,.22);color:rgba(255,255,255,.3);font:400 calc(var(--pw) * .3)/1 'Libre Baskerville',serif}
 .sol .pc.sel{box-shadow:0 0 0 3px #ffd75e,0 0 18px rgba(255,215,94,.6)}
 .sol .pc[data-do]{touch-action:none}
 .sol [data-do]{cursor:pointer}
@@ -908,3 +908,152 @@ body[data-game="dealmaker"]{background:
 /* Dealmaker: the ten property-set colours run under the header like the bands on title deeds */
 [data-game="dealmaker"] .top::after{content:"";position:absolute;left:0;right:0;bottom:0;height:4px;border-radius:2px;
   background:linear-gradient(90deg,#8a5a3b 0 10%,#8fcbe8 0 20%,#d24b93 0 30%,#f08a24 0 40%,#d93a30 0 50%,#f2cb2f 0 60%,#1e9a58 0 70%,#2747a3 0 80%,#2a2a2e 0 90%,#a7d6b6 0)}
+
+/* ---------- Poker ----------
+   A high-roller room: black graphite felt under a warm spotlight, a stitched cognac-leather
+   rail with a gold inlay, Bodoni Moda for the money moments, and a four-colour deck.
+   The signature is the showdown: the winning five cards lift and glow, the rest dim. */
+body[data-game="poker"]{--ink:#0b0a09;--brass:#d9b77a;--panel:rgba(20,18,16,.7);--line:rgba(217,183,122,.2);--text:#f3ede1;--muted:#b3a993;
+  background:radial-gradient(70% 55% at 50% 0%,rgba(255,214,150,.13),transparent 70%),radial-gradient(120% 90% at 50% 40%,#1c1915 0,#0f0e0c 55%,#060605 100%) fixed;background-color:#060605}
+[data-game="poker"] .hero h1,[data-game="poker"] .sheet h2,[data-game="poker"] #banner .bt,[data-game="poker"] .curtain h2{font-family:'Bodoni Moda',Didot,serif;font-style:italic;font-weight:600;letter-spacing:-.01em}
+[data-game="poker"] #banner .bt{color:#f4d58d;text-shadow:0 2px 0 #5a4416,0 18px 40px rgba(0,0,0,.7)}
+[data-game="poker"] .btn.gold{background:linear-gradient(180deg,#f0d898,#c99a4a);color:#1a1208}
+[data-game="poker"] .sheet{background:linear-gradient(180deg,#1f1b17,#0f0d0b);border-color:rgba(217,183,122,.45)}
+[data-game="poker"] .curtain{background:radial-gradient(circle at 50% 35%,#2a2118,#0b0a09 70%)}
+.pk-art .fi .pkc{--cw:96px}
+.fan .pk-art .fi .pkc{--cw:124px}
+
+.pk-bar{display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding:16px 0 4px}
+.pk-logo{font:italic 600 30px/1 'Bodoni Moda',Didot,serif;color:#f4d58d;letter-spacing:-.01em}
+.pk-meta{font-size:13px;color:var(--muted)}
+.pk-room .tool{border-color:rgba(217,183,122,.3);color:#d9b77a}
+
+.pk-table{--sx:47%;--sy:45%;--bx:31%;--by:27%;--dx:37%;--dy:33%;position:relative;width:min(100%,1080px);aspect-ratio:2.05/1;margin:30px auto 18px}
+.pk-rail{position:absolute;inset:7% 5%;border-radius:999px;background:linear-gradient(#8f4f27,#5c2d13 48%,#371807);
+  box-shadow:0 34px 80px rgba(0,0,0,.75),inset 0 2px 0 rgba(255,220,180,.25),inset 0 -4px 8px rgba(0,0,0,.55)}
+.pk-rail::before{content:"";position:absolute;inset:9px;border-radius:999px;border:1.5px dashed rgba(246,214,170,.32)}
+.pk-felt{position:absolute;inset:clamp(16px,3.2vw,30px);border-radius:999px;overflow:hidden;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.12'/%3E%3C/svg%3E"),radial-gradient(ellipse at 50% 38%,#353940,#1d1f23 62%,#111214);
+  box-shadow:0 0 0 2px #c9a35e,0 0 0 4px #2a1206,inset 0 12px 44px rgba(0,0,0,.65)}
+.pk-felt::before{content:"";position:absolute;inset:17% 13%;border-radius:999px;border:1px solid rgba(217,183,122,.16)}
+.pk-mark{position:absolute;left:50%;bottom:13%;transform:translateX(-50%);font:italic 600 clamp(14px,2vw,22px)/1 'Bodoni Moda',serif;letter-spacing:.24em;color:rgba(217,183,122,.16);white-space:nowrap}
+.pk-center{position:absolute;left:50%;top:47%;transform:translate(-50%,-50%);z-index:2;display:grid;justify-items:center;gap:10px}
+.pk-pot{display:flex;align-items:flex-end;gap:10px;min-height:38px;color:var(--muted);font-size:13px}
+.pk-pot b{font:600 24px/1 'Bodoni Moda',serif;color:#f4d58d;font-variant-numeric:lining-nums tabular-nums}
+.pk-board{display:flex;gap:8px}
+.pk-board .pkc{--cw:clamp(44px,6.4vw,74px)}
+.pk-say{min-height:24px;max-width:48ch;text-align:center;font:italic 500 18px/1.2 'Bodoni Moda',serif;color:#f3ede1}
+.pk-shoe{position:absolute;left:21%;top:47%;transform:translate(-50%,-50%) rotate(-12deg);z-index:1}
+.pk-shoe .pkc{--cw:40px;box-shadow:2px 2px 0 -1px #f4efe4,3px 3px 0 -1px #2a1206,5px 5px 0 -2px #f4efe4,6px 6px 0 -2px #2a1206,0 10px 18px rgba(0,0,0,.5)}
+
+/* seats, bets, dealer button */
+.pk-seat{position:absolute;transform:translate(-50%,-50%);z-index:3;width:150px;display:grid;justify-items:center}
+.pk-hole{display:flex;margin-bottom:-14px;min-height:20px}
+.pk-hole .pkc{--cw:clamp(34px,4.4vw,48px)}
+.pk-hole .pkc:first-child{transform:rotate(-7deg) translateX(5px)}
+.pk-hole .pkc:last-child{transform:rotate(7deg) translateX(-5px)}
+.pk-hole .pkc.hi:first-child{transform:rotate(-7deg) translate(5px,-8px)}
+.pk-hole .pkc.hi:last-child{transform:rotate(7deg) translate(-5px,-8px)}
+.pk-seat.me .pk-hole .pkc{--cw:clamp(52px,6.6vw,76px)}
+.pk-plate{position:relative;z-index:1;display:flex;align-items:center;gap:8px;max-width:150px;padding:5px 14px 5px 5px;border-radius:999px;background:linear-gradient(#24211d,#100f0d);box-shadow:0 0 0 1px rgba(217,183,122,.35),0 10px 22px rgba(0,0,0,.65);transition:box-shadow .3s}
+.pk-plate>div{display:grid;min-width:0;line-height:1.15}
+.pk-plate b{font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center;gap:4px}
+.pk-plate>div>span{font-size:13px;font-weight:600;color:#d9b77a;font-variant-numeric:tabular-nums}
+.pk-seat.up .pk-plate{box-shadow:0 0 0 2px #d9b77a,0 0 26px rgba(217,183,122,.6);animation:pkup 1.6s ease-in-out infinite}
+@keyframes pkup{50%{box-shadow:0 0 0 2px #d9b77a,0 0 8px rgba(217,183,122,.2)}}
+.pk-seat.folded .pk-hole{visibility:hidden}
+.pk-seat.folded .pk-plate,.pk-seat.out{opacity:.45}
+.pk-seat.won .pk-plate{box-shadow:0 0 0 2px #f4d58d,0 0 36px rgba(244,213,141,.75)}
+.pk-tag{margin-top:6px;padding:2px 10px;border-radius:999px;background:rgba(0,0,0,.65);color:#e8e2d4;font-size:11px;font-weight:700;letter-spacing:.05em;white-space:nowrap}
+.pk-tag.allin{background:#b3122e;color:#fff}
+.pk-tag.fold{color:#8d867a}
+.pk-tag.win{background:linear-gradient(#f4d58d,#c99a4a);color:#1a1208;font-size:13px}
+.pk-hand{margin-top:3px;font:italic 500 13px/1.2 'Bodoni Moda',serif;color:#f4d58d;white-space:nowrap}
+.pk-bet{position:absolute;transform:translate(-50%,-50%);z-index:2;display:flex;align-items:flex-end;gap:6px}
+.pk-bet b{font-size:13px;font-weight:600;color:#f3ede1;text-shadow:0 1px 3px #000;font-variant-numeric:tabular-nums}
+.pk-dealer{position:absolute;transform:translate(-50%,-50%);z-index:3;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font:700 13px/1 'Bodoni Moda',serif;color:#1a1208;
+  background:radial-gradient(circle at 35% 30%,#fff,#e6e0d0);box-shadow:0 3px 0 #9a937f,0 6px 10px rgba(0,0,0,.55)}
+.pk-chips{position:relative;display:inline-block;width:26px;height:40px;flex:none}
+.pk-chips i{position:absolute;left:0;bottom:calc(var(--i) * 3.6px);width:26px;height:10px;border-radius:50%;
+  background:radial-gradient(ellipse at center,var(--c) 0 44%,transparent 47%),repeating-conic-gradient(var(--c) 0 18deg,#f5f1e6 18deg 30deg);
+  box-shadow:0 2px 0 color-mix(in srgb,var(--c) 55%,#000),0 3px 4px rgba(0,0,0,.45)}
+
+/* cards: crisp faces, Bodoni indices, four-colour suits, oxblood backs with a gold monogram */
+.pkc{--cw:62px;--sc:#16161a;position:relative;flex:none;width:var(--cw);aspect-ratio:5/7;overflow:hidden;border-radius:calc(var(--cw) * .09);color:var(--sc);
+  background:linear-gradient(160deg,#fff,#f3efe6);box-shadow:0 0 0 1px rgba(0,0,0,.25),0 6px 14px rgba(0,0,0,.45);transition:transform .3s,filter .3s,box-shadow .3s;user-select:none;-webkit-user-select:none}
+.pkc.s1{--sc:#c8102e}.pkc.s2{--sc:#1f5fd6}.pkc.s3{--sc:#138a3c}
+.pkc b{position:absolute;left:9%;top:5%;font:700 calc(var(--cw) * .32)/1 'Bodoni Moda',Didot,serif;letter-spacing:-.05em}
+.pkc i{position:absolute;left:11%;top:37%;font-style:normal;font-size:calc(var(--cw) * .24);line-height:1}
+.pkc span{position:absolute;right:7%;bottom:3%;font-size:calc(var(--cw) * .58);line-height:1}
+.pkc.down{background:repeating-linear-gradient(45deg,rgba(217,183,122,.22) 0 1px,transparent 1px 6px),repeating-linear-gradient(-45deg,rgba(217,183,122,.22) 0 1px,transparent 1px 6px),linear-gradient(#64142a,#3a0814);
+  box-shadow:inset 0 0 0 calc(var(--cw) * .055) #f4efe4,0 0 0 1px rgba(0,0,0,.4),0 6px 14px rgba(0,0,0,.45)}
+.pkc.down::after{content:"P";position:absolute;inset:0;display:grid;place-items:center;font:italic 600 calc(var(--cw) * .42)/1 'Bodoni Moda',serif;color:#d9b77a;text-shadow:0 1px 0 #2a0610}
+.pkc.spot{background:transparent;box-shadow:inset 0 0 0 1.5px rgba(217,183,122,.22)}
+.pkc.hi{transform:translateY(-10px);box-shadow:0 0 0 2px #f4d58d,0 0 26px rgba(244,213,141,.8)}
+.pkc.dim{filter:brightness(.42) saturate(.5)}
+.pkc.deal{animation:pkdeal .55s cubic-bezier(.2,.8,.3,1) both}
+@keyframes pkdeal{from{transform:translateY(-34px) rotateY(90deg);opacity:0}}
+
+/* the action bar */
+.pk-dock{position:sticky;bottom:0;z-index:10;display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap;max-width:1080px;margin:0 auto 18px;
+  padding:14px 18px calc(14px + env(safe-area-inset-bottom,0px));border-radius:18px;background:linear-gradient(#1d1a17,#0e0d0b);box-shadow:0 0 0 1px rgba(217,183,122,.28),0 20px 44px rgba(0,0,0,.65)}
+.pk-dock.turn{box-shadow:0 0 0 1px #d9b77a,0 0 30px rgba(217,183,122,.25),0 20px 44px rgba(0,0,0,.65)}
+.pk-info{margin-right:auto;color:#cfc6b5}
+.pk-info b{font:italic 600 19px/1.2 'Bodoni Moda',serif;color:#f4d58d}
+.pk-acts{display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+.pk-btn{min-height:46px;padding:10px 22px;border-radius:10px;border:1px solid rgba(217,183,122,.4);background:linear-gradient(#2c2823,#191714);color:#f3ede1;font:600 15px var(--body);white-space:nowrap}
+.pk-btn:hover{border-color:#d9b77a}
+.pk-btn.fold{color:#ee9a9a;border-color:rgba(238,154,154,.35)}
+.pk-btn.gold{border:0;background:linear-gradient(#f0d898,#c99a4a);color:#1a1208;box-shadow:0 4px 0 #7d5a22}
+.pk-btn.gold:active{translate:0 2px;box-shadow:0 2px 0 #7d5a22}
+.pk-raise{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding-left:12px;border-left:1px solid rgba(217,183,122,.2)}
+.pk-quick{display:flex;gap:4px;flex-wrap:wrap}
+.pk-quick button{padding:6px 10px;border-radius:7px;border:1px solid rgba(217,183,122,.3);background:transparent;color:#d9b77a;font-size:12px;font-weight:600}
+.pk-quick button.on{background:#d9b77a;color:#1a1208}
+#pkr{width:150px;accent-color:#d9b77a}
+
+@media (max-width:700px){
+  .pk-table{--sx:36%;--sy:45%;--bx:24%;--by:31%;--dx:29%;--dy:37%;aspect-ratio:.8;margin-top:14px}
+  .pk-rail{inset:5% 7%}
+  .pk-seat{width:96px}
+  .pk-plate{max-width:96px;padding:3px 9px 3px 3px;gap:5px}
+  .pk-plate .av{width:24px;height:24px;font-size:11px}
+  .pk-plate b,.pk-plate>div>span{font-size:11px}
+  .pk-board{gap:4px}
+  .pk-board .pkc{--cw:42px}
+  .pk-shoe{left:50%;top:22%}
+  .pk-say{font-size:15px;max-width:26ch}
+  .pk-raise{border-left:0;padding-left:0}
+  #pkr{width:100%}
+}
+@media (prefers-reduced-motion:reduce){ .pk-seat.up .pk-plate,.pkc.deal{animation:none} }
+
+/* ---------- UNO No Mercy ----------
+   Black and blood red with hazard stripes and stencilled Black Ops One stamps. The signature
+   is the stack counter: a red +N slapped over the pile that grows as penalties pile up. */
+body[data-game="unonm"]{background:repeating-linear-gradient(-45deg,rgba(224,27,36,.07) 0 22px,transparent 22px 44px) fixed,radial-gradient(circle at 50% 40%,#3d0709 0,#170204 55%,#050101) fixed;background-color:#050101}
+[data-game="unonm"] .sheet{background:linear-gradient(180deg,#22070a,#0b0203);border-color:rgba(224,27,36,.6)}
+[data-game="unonm"] .curtain{background:radial-gradient(circle at 50% 40%,#5a0a0e,#0b0203 70%)}
+[data-game="unonm"] #banner .bt{font-family:'Black Ops One',var(--display);color:#fff;-webkit-text-stroke:2px #1a0505;text-shadow:0 0 34px #e01b24,5px 5px 0 #8a0a10}
+[data-game="unonm"] .btn.gold{background:linear-gradient(180deg,#ff4b4b,#c4121a);color:#fff;box-shadow:0 4px 0 #5c0a0e}
+[data-game="unonm"] .uno-logo,.is-nm .uno-logo{background:#111;box-shadow:0 0 0 3px #e01b24,0 0 0 5px #1a0505,0 6px 18px rgba(224,27,36,.35)}
+.uno-logo i.nm{right:-34px;padding:3px 8px;border-radius:4px;background:#e01b24;color:#fff;font-family:'Black Ops One',var(--display);letter-spacing:.06em;box-shadow:0 0 0 2px #111;transform:rotate(-7deg)}
+.uno-logo.big i.nm{right:-60px;padding:5px 14px}
+.is-nm .uno-felt{background:radial-gradient(closest-side,rgba(224,27,36,.12),rgba(0,0,0,.6));box-shadow:inset 0 0 0 3px rgba(224,27,36,.55),0 0 70px rgba(224,27,36,.22)}
+.is-nm .uno-call{background:radial-gradient(circle at 35% 30%,#ff5a45,#c4121a 60%,#5c0a0e);box-shadow:0 0 0 4px #111,0 0 0 6px #e01b24,0 7px 0 6px #1a0505}
+.uno-stack{position:absolute;left:50%;top:-14%;z-index:4;padding:4px 16px;border-radius:8px;background:#e01b24;color:#fff;font:400 clamp(38px,5vw,58px)/1 'Black Ops One',var(--display);
+  transform:translateX(-50%) rotate(-7deg);box-shadow:0 0 0 3px #111,0 0 34px rgba(224,27,36,.85);animation:ustack .45s cubic-bezier(.2,1.6,.4,1)}
+@keyframes ustack{from{transform:translateX(-50%) rotate(-7deg) scale(2.2);opacity:0}}
+.uno-mercy{display:block;width:72px;height:5px;margin-top:3px;border-radius:3px;background:linear-gradient(90deg,#ffd21f,#ff7a1a 55%,#e01b24) 0 0/calc(var(--m) * 100%) 100% no-repeat,rgba(255,255,255,.16)}
+.uno-seat.danger .uno-n{background:#e01b24;animation:upulse .9s ease-in-out infinite}
+.uno-seat.gone{opacity:.4;filter:grayscale(1)}
+.uno-tag.out{padding:2px 8px;border-radius:4px;background:#e01b24;color:#fff;-webkit-text-stroke:0;font-family:'Black Ops One',var(--display);animation:none}
+.uno-count{font-weight:600}
+.uno-count.danger{color:#ff6b6b}
+.uno-btn.take{background:#e01b24;color:#fff;box-shadow:0 4px 0 #5c0a0e}
+.uswap{display:grid;gap:10px}
+.uswap .uno-btn{display:flex;align-items:center;gap:10px;font-size:18px;text-align:left}
+.uswap .uno-btn small{margin-left:auto;font:600 12px var(--body);opacity:.7}
+@media (prefers-reduced-motion:reduce){ .uno-stack,.uno-seat.danger .uno-n{animation:none} }
+.is-nm .uno-bar{gap:52px}
+@media (max-width:700px){ .uno-table{margin-top:38px} .is-nm .uno-bar{gap:12px 40px} }

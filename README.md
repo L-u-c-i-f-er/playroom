@@ -1,9 +1,9 @@
 # Playroom
 
-Card and number games to play with friends: **Dealmaker** (Monopoly Deal rules), **Tambola / Housie**, **13-card Indian Rummy**, **Andar Bahar** (play-money chips), **Least Count**, **UNO**, **UNO Flip** and **Mafia**, plus **Solitaire** (Klondike, FreeCell, Spider) to play alone.
+Card and number games to play with friends: **Dealmaker** (Monopoly Deal rules), **Tambola / Housie**, **13-card Indian Rummy**, **Andar Bahar** (play-money chips), **Least Count**, **UNO**, **UNO Flip**, **UNO No Mercy**, **Mafia** and **Poker** (Texas Hold’em, play-money chips), plus **Solitaire** (Klondike, FreeCell, Spider) to play alone.
 
 - **Online:** one person hosts a table and shares a 5-letter code. Friends open the site, enter the code and play from their own devices.
-- **Offline:** pass one device around (Dealmaker, Rummy, Least Count, UNO, UNO Flip, Mafia), bet from one shared screen (Andar Bahar), or use one device as the Tambola caller while everyone else opens tickets on their phones.
+- **Offline:** pass one device around (Dealmaker, Rummy, Least Count, UNO, UNO Flip, UNO No Mercy, Mafia, Poker), bet from one shared screen (Andar Bahar), or use one device as the Tambola caller while everyone else opens tickets on their phones.
 
 ## Run it on your computer
 
@@ -24,7 +24,7 @@ Friends on the same Wi-Fi can join at `http://<your-computer's-IP>:3000`.
 npm test
 ```
 
-runs the rules checks: hundreds of simulated Dealmaker, Rummy, Least Count, UNO, UNO Flip, Mafia and Solitaire games, thousands of Andar Bahar deals, plus Tambola ticket and claim checks.
+runs the rules checks: hundreds of simulated Dealmaker, Rummy, Least Count, UNO, UNO Flip, Mafia, Poker and Solitaire games, thousands of Andar Bahar deals, plus Tambola ticket and claim checks.
 
 ## Deploy it
 
@@ -78,9 +78,10 @@ public/js/tambola.js   Tambola rules and screens
 public/js/rummy.js     Rummy rules and screens (also draws the playing cards other games reuse)
 public/js/andarbahar.js   Andar Bahar rules and screens
 public/js/leastcount.js   Least Count rules and screens
-public/js/uno.js       UNO and UNO Flip rules and screens (one engine, two decks)
+public/js/uno.js       UNO, UNO Flip and UNO No Mercy rules and screens (one engine, three decks)
 public/js/mafia.js     Mafia roles, night and day rules and screens
 public/js/solitaire.js Klondike, FreeCell and Spider rules and screens
+public/js/poker.js     Texas Hold’em rules, hand evaluator, side pots and screens
 public/js/boot.js      loaded last; draws the hub once every game has registered
 test/                  rules checks (npm test)
 ```
