@@ -5,8 +5,13 @@
    ===================================================================== */
 const TAM = (() => {
   const PRIZES = [['early', 'Early Five', 'Any five numbers on a ticket'], ['top', 'Top Line', 'Every number in row 1'], ['middle', 'Middle Line', 'Every number in row 2'],
-    ['bottom', 'Bottom Line', 'Every number in row 3'], ['corners', 'Four Corners', 'First and last numbers of rows 1 and 3'], ['full', 'Full House', 'All 15 numbers']];
+    ['bottom', 'Bottom Line', 'Every number in row 3'], ['corners', 'Four Corners', 'First and last numbers of rows 1 and 3'], ['full', 'Full House', 'All 15 numbers'],
+    ['full2', 'Second Full House', 'All 15 numbers, after the first Full House'], ['full3', 'Third Full House', 'All 15 numbers, after the second Full House']];
   const PN = Object.fromEntries(PRIZES.map(([k, n]) => [k, n]));
+  const BASE = ['early', 'top', 'middle', 'bottom', 'corners'], HOUSES = ['full', 'full2', 'full3'];
+  // The prizes this game plays for: whichever of the five the caller picked, then 1 to 3 Full Houses in order.
+  const inPlay = s => { const c = s.cfg || cfg, on = c.prizes || BASE; return PRIZES.map(p => p[0]).filter(k => HOUSES.includes(k) ? HOUSES.indexOf(k) < (c.houses || 1) : on.includes(k)); };
+  const lastHouse = s => HOUSES[Math.min(3, Math.max(1, (s.cfg || cfg).houses || 1)) - 1];
   const CALLS = {1:'Kelly’s eye', 2:'One little duck', 3:'Cup of tea', 4:'Knock at the door', 5:'Man alive', 6:'Half a dozen', 7:'Lucky seven', 8:'Garden gate',
     9:'Doctor’s orders', 11:'Legs eleven', 12:'One dozen', 13:'Unlucky for some', 16:'Sweet sixteen', 21:'Key of the door', 22:'Two little ducks', 30:'Dirty Gertie',
     45:'Halfway there', 50:'Half a century', 55:'Snakes alive', 66:'Clickety click', 77:'Sunset strip', 88:'Two fat ladies', 90:'Top of the shop'};
@@ -41,7 +46,9 @@ const TAM = (() => {
     if (k === 'corners') return [rows[0][0], rows[0][4], rows[2][0], rows[2][4]].every(has);
     return rows.flat().every(has);
   }
-  const cfg = {tickets:1, every:6};
+  // The prize setup chosen on this device carries over to the next game it hosts or calls.
+  const saved = store.get('tm-prizes', {});
+  const cfg = {tickets:1, every:6, prizes:Array.isArray(saved.prizes) ? saved.prizes.filter(k => BASE.includes(k)) : BASE.slice(), houses:[1, 2, 3].includes(saved.houses) ? saved.houses : 1};
   function newGame(seats, extra = {}){
     const c = {...cfg, ...(extra.cfg || {})};
     const s = {...extra, cfg:c, phase:'play', gid:rid(8), players:seats.map(p => ({id:p.id, name:p.name, tickets:Array.from({length:c.tickets}, ticket), bogey:[]})),
@@ -51,7 +58,7 @@ const TAM = (() => {
   }
   function end(s){
     s.phase = 'over'; s.auto = false;
-    const got = PRIZES.filter(([k]) => s.prizes[k]).map(([k]) => `${PN[k]}: ${s.prizes[k].name}`);
+    const got = inPlay(s).filter(k => s.prizes[k]).map(k => `${PN[k]}: ${s.prizes[k].name}`);
     log(s, `Game over. ${got.join(' · ') || 'No prizes claimed'}`, 'win', {title:s.prizes.full ? `${s.prizes.full.name} — Full House!` : 'Game over', sub:'Thanks for playing'});
   }
   function apply(s, pid, a){
@@ -71,19 +78,25 @@ const TAM = (() => {
     if (a.t === 'every'){ const v = Math.round(a.sec); if (!(v >= 3 && v <= 15)) return 'Pick between 3 and 15 seconds'; s.every = v; return; }
     if (a.t === 'end') return end(s);
     if (a.t === 'award'){
-      if (!PN[a.prize]) return 'Unknown prize';
-      if (s.prizes[a.prize]) delete s.prizes[a.prize];
-      else { s.prizes[a.prize] = {name:'Claimed', at:s.called.length}; log(s, `${PN[a.prize]} claimed`, 'big', {title:PN[a.prize], sub:'Claimed in the room'}); }
-      if (s.prizes.full) end(s);
+      const k = a.prize;
+      if (!inPlay(s).includes(k)) return 'That prize isn’t in this game';
+      const h = HOUSES.indexOf(k);
+      if (s.prizes[k]){ if (h >= 0 && s.prizes[HOUSES[h + 1]]) return `Undo the ${PN[HOUSES[h + 1]]} first`; delete s.prizes[k]; return; }
+      if (h > 0 && !s.prizes[HOUSES[h - 1]]) return `Mark the ${PN[HOUSES[h - 1]]} first`;
+      s.prizes[k] = {name:'Claimed', at:s.called.length}; log(s, `${PN[k]} claimed`, 'big', {title:PN[k], sub:'Claimed in the room'});
+      if (s.prizes[lastHouse(s)]) end(s);
       return;
     }
     if (a.t === 'claim'){
       const p = P(s, pid); if (!p) return 'You’re watching this game';
-      const k = a.prize, T = p.tickets[a.ticket];
-      if (!PN[k]) return 'Unknown prize';
+      const k = a.prize, T = p.tickets[a.ticket], h = HOUSES.indexOf(k);
+      if (!inPlay(s).includes(k)) return 'That prize isn’t in this game';
       if (!T) return 'Pick one of your tickets';
       if (p.bogey.includes(a.ticket)) return 'That ticket was cancelled after a wrong claim';
       if (s.prizes[k]) return `${PN[k]} already went to ${s.prizes[k].name}`;
+      // Full Houses go in order, and a ticket can only win one of them.
+      if (h > 0 && !s.prizes[HOUSES[h - 1]]) return `The ${PN[HOUSES[h - 1]]} hasn’t been won yet. Claim that first`;
+      if (h >= 0 && HOUSES.some(q => s.prizes[q]?.pid === pid && s.prizes[q].ticket === a.ticket)) return 'That ticket already won a Full House';
       if (!won(T, k, s.called)){
         p.bogey.push(a.ticket);
         log(s, `${p.name}’s ${PN[k]} claim was wrong. Ticket ${a.ticket + 1} is out`, 'big', {title:'Bogey!', sub:`${p.name} · ${PN[k]}`});
@@ -91,7 +104,7 @@ const TAM = (() => {
       }
       s.prizes[k] = {pid, name:p.name, ticket:a.ticket, at:s.called.length};
       log(s, `${p.name} won ${PN[k]} on number ${s.called.length}`, 'big', {title:PN[k], sub:`${p.name} wins`});
-      if (k === 'full' || PRIZES.every(([q]) => s.prizes[q])) end(s);
+      if (k === lastHouse(s) || inPlay(s).every(q => s.prizes[q])) end(s);
       return;
     }
     return 'That move was not understood';
@@ -134,14 +147,19 @@ const TAM = (() => {
   const rulesList = [
     ['Tickets', 'Each ticket has 15 numbers in 3 rows of 5. Column 1 holds 1–9, column 2 holds 10–19, and so on up to 80–90.'],
     ['Calling', 'The caller draws numbers 1 to 90 at random and reads each one out. Strike it if it’s on your ticket.'],
-    ['Prizes', 'Early Five: any five numbers. Top, Middle and Bottom Line: a whole row. Four Corners: first and last numbers of rows 1 and 3. Full House: all 15.'],
+    ['Prizes', 'Early Five: any five numbers. Top, Middle and Bottom Line: a whole row. Four Corners: first and last numbers of rows 1 and 3. Full House: all 15. The caller picks which of these are played.'],
+    ['More Full Houses', 'The caller can play for a second and third Full House. They go in order, after the one before is won, and a ticket can only win one Full House.'],
     ['Claiming', 'Tap Claim as soon as you have it. The claim is checked against the numbers actually called. First valid claim wins each prize.'],
     ['Bogey', 'A wrong claim cancels that ticket for the rest of the game.'],
-    ['Game end', 'The game ends when Full House is won, or when the caller ends it.'],
+    ['Game end', 'The game ends when the last Full House in play is won, or when the caller ends it.'],
   ];
   const rules = () => sheet(`<div class="eyebrow">How to play</div><h2>Tambola rules</h2><ul class="rules">${rulesList.map(([k, v]) => `<li><b>${k}</b><span>${v}</span></li>`).join('')}</ul>
     <div class="acts"><button class="btn gold" data-do="closemodal">Got it</button></div>`);
 
+  // Which prizes a game plays for: toggle the five, and play for one to three Full Houses.
+  const prizePicker = c => `<div class="tprz" role="group" aria-label="Prizes in play">${BASE.map(k => `<button class="tpz ${c.prizes.includes(k) ? 'on' : ''}" data-do="tprize" data-k="${k}" aria-pressed="${c.prizes.includes(k)}">${PN[k]}</button>`).join('')}</div>
+    <div class="tprz" role="group" aria-label="Number of Full Houses"><span class="muted">Full House</span>${[1, 2, 3].map(n => `<button class="tpz ${(c.houses || 1) === n ? 'on' : ''}" data-do="thouses" data-n="${n}" aria-pressed="${(c.houses || 1) === n}">${['One', 'Two', 'Three'][n - 1]}</button>`).join('')}</div>`;
+  const prizeText = c => [...BASE.filter(k => (c.prizes || BASE).includes(k)).map(k => PN[k]), `${['', 'one', 'two', 'three'][c.houses || 1]} Full House${(c.houses || 1) > 1 ? 's' : ''}`].join(', ');
   function home(){
     if (sub === 'tickets') return vPocket();
     return `<div class="home">
@@ -151,7 +169,7 @@ const TAM = (() => {
           <div class="eyebrow">Housie</div>
           <h1>Tam<em>bola</em></h1>
           <p>Ninety numbers, one caller and a race to strike your ticket. Claim Early Five, the three lines, Four Corners and Full House.</p>
-          <div class="facts"><span class="fact"><b>1–20</b> players</span><span class="fact"><b>90</b> numbers</span><span class="fact"><b>6</b> prizes</span><span class="fact"><b>Voice</b> caller</span></div>
+          <div class="facts"><span class="fact"><b>1–20</b> players</span><span class="fact"><b>90</b> numbers</span><span class="fact"><b>${inPlay({cfg}).length}</b> prizes</span><span class="fact"><b>Voice</b> caller</span></div>
         </div>
         <div class="fan" aria-hidden="true">${art()}</div>
       </section>
@@ -163,6 +181,11 @@ const TAM = (() => {
           <div class="field"><label for="cd">Or join with a code</label><div class="row"><input id="cd" class="grow code-in" data-f="code" value="${esc(form.code)}" maxlength="5" placeholder="ABCDE" autocomplete="off"><button class="btn" data-do="join">Join</button></div></div>
           <p class="note">You call the numbers and get tickets too. Everyone’s claims are checked automatically.</p>`
           : '<p class="note">Can’t reach the game server right now, so online play is off. Offline modes still work.</p>'}
+        </div>
+        <div class="panel">
+          <div class="eyebrow">Prizes</div><h2>What you play for</h2>
+          <p>Pick the prizes for games you host or call from this device. Full House always ends the game; add a second or third if you like.</p>
+          ${prizePicker(cfg)}
         </div>
         <div class="panel">
           <div class="eyebrow">Same room</div><h2>Play together offline</h2>
@@ -229,9 +252,10 @@ const TAM = (() => {
         </section>` : ''}
         <section class="panel prizes">
           <div class="eyebrow">Prizes</div>
-          <ul class="plist">${PRIZES.map(([k, n, d]) => { const w = s.prizes[k]; return `<li class="${w ? 'won' : ''}"><div><b>${n}</b><small>${d}</small></div>${
+          <ul class="plist">${PRIZES.filter(([k]) => inPlay(s).includes(k)).map(([k, n, d]) => { const w = s.prizes[k], h = HOUSES.indexOf(k), wait = h > 0 && !s.prizes[HOUSES[h - 1]]; return `<li class="${w ? 'won' : ''}"><div><b>${n}</b><small>${d}</small></div>${
             w ? `<span class="winner">${esc(w.name)}${w.at ? `<br><small>on number ${w.at}</small>` : ''}</span>`
             : s.phase !== 'play' ? '<span class="muted">Not won</span>'
+            : wait ? `<span class="muted">After ${PN[HOUSES[h - 1]]}</span>`
             : meP ? `<button class="btn small gold" data-do="tclaim" data-k="${k}">Claim</button>`
             : caller ? `<button class="btn small" data-do="taward" data-k="${k}">Mark won</button>` : ''}</li>`; }).join('')}</ul>
         </section>
@@ -247,7 +271,7 @@ const TAM = (() => {
     if (s.phase === 'over'){
       const restart = mode === 'local' || mode === 'host';
       return sheet(`<div class="eyebrow">Game over</div><h2>${s.prizes.full ? `${esc(s.prizes.full.name)} got Full House` : 'That’s the game'}</h2>
-        <ul class="plist">${PRIZES.map(([k, n]) => `<li class="${s.prizes[k] ? 'won' : ''}"><div><b>${n}</b></div><span class="winner">${s.prizes[k] ? esc(s.prizes[k].name) : '<span class="muted">Not won</span>'}</span></li>`).join('')}</ul>
+        <ul class="plist">${PRIZES.filter(([k]) => inPlay(s).includes(k)).map(([k, n]) => `<li class="${s.prizes[k] ? 'won' : ''}"><div><b>${n}</b></div><span class="winner">${s.prizes[k] ? esc(s.prizes[k].name) : '<span class="muted">Not won</span>'}</span></li>`).join('')}</ul>
         <div class="acts"><button class="btn" data-do="leave">Back to menu</button>${restart ? '<button class="btn gold" data-do="again">New game</button>' : '<span class="muted">The caller can start a new game.</span>'}</div>`);
     }
     if (ui.tclaim && meP){
@@ -266,6 +290,8 @@ const TAM = (() => {
     tend:() => send({t:'end'}),
     taward:d => send({t:'award', prize:d.k}, true),
     tclaim:d => { ui.tclaim = d.k; render(); },
+    tprize:d => setPrizes(c => ({prizes:c.prizes.includes(d.k) ? c.prizes.filter(k => k !== d.k) : BASE.filter(k => k === d.k || c.prizes.includes(k))})),
+    thouses:d => setPrizes(() => ({houses:+d.n})),
     tclaimx:() => { ui.tclaim = null; render(); },
     tclaimgo:d => send({t:'claim', prize:ui.tclaim, ticket:+d.ti}),
     tmark:d => {
@@ -282,6 +308,15 @@ const TAM = (() => {
     tpmark:d => { toggleMark(pocket.gid, +d.ti, +d.n); render(); },
     tsubback:() => { sub = null; newArm = false; render(); },
   });
+  // In the online lobby the host edits the table's prizes; anywhere else it's this device's default. Either way it's remembered.
+  function setPrizes(change){
+    const lobby = mode === 'host' && G?.phase === 'lobby' && GID === 'tambola';
+    const cur = lobby ? {prizes:G.cfg?.prizes || BASE, houses:G.cfg?.houses || 1} : cfg;
+    const next = {prizes:cur.prizes, houses:cur.houses || 1, ...change(cur)};
+    Object.assign(cfg, next); store.set('tm-prizes', next);
+    if (lobby){ G.cfg = {...G.cfg, ...next}; G.v++; persist(); }
+    render();
+  }
   app.addEventListener('change', e => {
     if (GID !== 'tambola') return;
     if (e.target.dataset.tsp != null) send({t:'every', sec:+e.target.value}, true);
@@ -299,12 +334,13 @@ const TAM = (() => {
   }, 300);
 
   return {
-    name:'Tambola', min:1, max:20, cfg, newGame, apply, home, view, rules, art, ticket, won, PRIZES,
+    name:'Tambola', min:1, max:20, cfg, newGame, apply, home, view, rules, art, ticket, won, PRIZES, inPlay,
     onEvents:(fresh, s) => { const c = fresh.filter(e => e.kind === 'call'); if (c.length) speak(spoken(s.called.at(-1))); },
     lobby:(s, host) => host
       ? `<div class="row"><label class="muted">Tickets each <select data-tcfg="tickets">${[1, 2, 3].map(v => `<option ${v === s.cfg?.tickets ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
-         <label class="muted">Seconds between numbers <select data-tcfg="every">${[3, 4, 5, 6, 8, 10, 12, 15].map(v => `<option ${v === s.cfg?.every ? 'selected' : ''}>${v}</option>`).join('')}</select></label></div>`
-      : `<p class="muted">${s.cfg?.tickets || 1} ticket${(s.cfg?.tickets || 1) > 1 ? 's' : ''} each · a new number every ${s.cfg?.every || 6}s</p>`,
+         <label class="muted">Seconds between numbers <select data-tcfg="every">${[3, 4, 5, 6, 8, 10, 12, 15].map(v => `<option ${v === s.cfg?.every ? 'selected' : ''}>${v}</option>`).join('')}</select></label></div>
+         <div class="field"><label>Prizes</label>${prizePicker({prizes:s.cfg?.prizes || BASE, houses:s.cfg?.houses || 1})}</div>`
+      : `<p class="muted">${s.cfg?.tickets || 1} ticket${(s.cfg?.tickets || 1) > 1 ? 's' : ''} each · a new number every ${s.cfg?.every || 6}s</p><p class="muted">Prizes: ${prizeText(s.cfg || cfg)}</p>`,
   };
 })();
 ENG.tambola = TAM;

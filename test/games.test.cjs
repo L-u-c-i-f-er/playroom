@@ -42,6 +42,27 @@ for (let i = 0; i < 3000; i++){
   assert.strictEqual(TAM.apply(s, 'h', {t:'claim', prize:'full', ticket:0}), undefined);
   assert.strictEqual(s.phase, 'over');
 }
+// --- Tambola prize choice: only prizes in play; extra Full Houses in order, one per ticket; the last one ends the game.
+{
+  const s = TAM.newGame([{id:'h', name:'Host'}, {id:'g', name:'Guest'}], {host:'h', cfg:{tickets:2, prizes:['top'], houses:2}});
+  assert.deepStrictEqual(TAM.inPlay(s), ['top', 'full', 'full2']);
+  assert.deepStrictEqual(TAM.inPlay(TAM.newGame([], {cfg:{prizes:[], houses:3}})), ['full', 'full2', 'full3']);
+  s.called = [...Array(90).keys()].map(n => n + 1);
+  assert(TAM.apply(s, 'g', {t:'claim', prize:'early', ticket:0}).includes('isn’t in this game'));
+  assert(TAM.apply(s, 'g', {t:'claim', prize:'full2', ticket:0}).includes('hasn’t been won yet'));
+  assert.deepStrictEqual(s.players[1].bogey, [], 'claiming out of order is refused, not a bogey');
+  assert.strictEqual(TAM.apply(s, 'g', {t:'claim', prize:'full', ticket:0}), undefined);
+  assert.strictEqual(s.phase, 'play', 'a second Full House is still to play for');
+  assert(TAM.apply(s, 'g', {t:'claim', prize:'full2', ticket:0}).includes('already won a Full House'));
+  assert.strictEqual(TAM.apply(s, 'g', {t:'claim', prize:'full2', ticket:1}), undefined, 'another ticket of the same player can win it');
+  assert.strictEqual(s.phase, 'over');
+  const a = TAM.newGame([], {host:'h', cfg:{houses:2}});
+  assert(TAM.apply(a, 'h', {t:'award', prize:'full2'}).includes('first'));
+  assert.strictEqual(TAM.apply(a, 'h', {t:'award', prize:'full'}), undefined); assert.strictEqual(a.phase, 'play');
+  assert.strictEqual(TAM.apply(a, 'h', {t:'award', prize:'full'}), undefined, 'tapping again undoes it'); assert(!a.prizes.full);
+  assert.strictEqual(TAM.apply(a, 'h', {t:'award', prize:'full'}), undefined);
+  assert.strictEqual(TAM.apply(a, 'h', {t:'award', prize:'full2'}), undefined); assert.strictEqual(a.phase, 'over');
+}
 // --- Rummy melds.
 {
   const s = {jr:7};
