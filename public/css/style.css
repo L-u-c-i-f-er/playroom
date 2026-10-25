@@ -1845,3 +1845,39 @@ body[data-game="scribble"]{--display:'Kalam',cursive;--brass:#ffd23f;--brass-dee
 @media (prefers-reduced-motion:reduce){ .sc-tag.pen,.sc-wiggle,.sc-artpencil,.sc-time.low{animation:none} }
 .sc-head{margin-bottom:20px}
 @media (max-width:960px){ [data-game="scribble"] .chat{top:auto;bottom:calc(12px + env(safe-area-inset-bottom,0px))} }
+
+/* Scribble: letter counts, word levels, fill and the colour wheel */
+.sc-word{gap:14px}
+.sc-w{display:inline-flex;gap:6px;align-items:flex-end}
+.sc-w sup{align-self:flex-start;margin-left:2px;font:800 13px var(--body);color:var(--brass);opacity:.9}
+.sc-lvl{display:inline-block;font-style:normal;font-weight:800;font-size:11px;letter-spacing:.06em;text-transform:uppercase;padding:2px 8px;border-radius:999px;margin-right:4px;background:#4caf50;color:#fff}
+.sc-lvl.l1{background:#fb8c00}.sc-lvl.l2{background:#e53935}
+.sc-wc{display:grid;gap:6px;justify-items:center}
+.sc-wc small{font:800 11px var(--body);letter-spacing:.06em;text-transform:uppercase;padding:3px 8px;border-radius:999px;background:#4caf50;color:#fff}
+.sc-wc.l1 small{background:#fb8c00}.sc-wc.l2 small{background:#e53935}
+.sc-inwrap{position:relative;flex:1;min-width:0;display:flex}
+.sc-inwrap input{padding-right:58px!important}
+.sc-count{position:absolute;right:10px;top:50%;transform:translateY(-50%);font:800 13px var(--body);color:#8a93c2;font-variant-numeric:tabular-nums;pointer-events:none}
+.sc-count.match{color:#2e9e4f}
+.sc-acts button{display:flex;gap:6px;align-items:center}
+.sc-acts svg{width:18px;height:18px}
+.sc-pal .sw.any{background:conic-gradient(from 0deg,#f44,#fd4,#4f6,#4ef,#46f,#e4f,#f44);position:relative}
+.sc-pal .sw.any::after{content:"";position:absolute;inset:6px;border-radius:50%;background:var(--c);box-shadow:0 0 0 2px #fff}
+.sc-canvas.can.fill{cursor:crosshair}
+.sc-wheelbox{flex-basis:100%;display:flex;gap:18px;align-items:center;justify-content:center;padding:10px;border-radius:14px;background:rgba(0,0,0,.25);animation:scfade .2s ease-out}
+.sc-wheel{--l:50;position:relative;width:170px;height:170px;flex:none;border-radius:50%;touch-action:none;cursor:crosshair;
+  background:radial-gradient(closest-side,hsl(0 0% calc(var(--l) * 1%)),hsl(0 0% calc(var(--l) * 1%) / 0)),
+    conic-gradient(hsl(0 100% calc(var(--l) * 1%)),hsl(60 100% calc(var(--l) * 1%)),hsl(120 100% calc(var(--l) * 1%)),hsl(180 100% calc(var(--l) * 1%)),hsl(240 100% calc(var(--l) * 1%)),hsl(300 100% calc(var(--l) * 1%)),hsl(360 100% calc(var(--l) * 1%)));
+  box-shadow:0 0 0 3px #fff,0 8px 20px rgba(0,0,0,.35)}
+.sc-wheel i{position:absolute;left:var(--x);top:var(--y);width:16px;height:16px;margin:-8px 0 0 -8px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 1px #000,0 2px 6px rgba(0,0,0,.5);pointer-events:none}
+.sc-wside{display:grid;gap:10px;justify-items:center}
+.sc-wprev{width:54px;height:54px;border-radius:14px;background:var(--c);box-shadow:0 0 0 3px #fff}
+.sc-wside label{display:grid;gap:4px;font:700 12px var(--body);color:var(--muted);text-align:center}
+.sc-wside input[type=range]{width:120px;accent-color:#ffd23f}
+@media (max-width:640px){
+  .sc-acts button span{display:none}
+  .sc-acts button{min-width:42px;padding:0 8px}
+  .sc-wheel{width:150px;height:150px}
+}
+.sc-word .sc-w{width:auto;height:auto;border-bottom:0;display:inline-flex;gap:6px;align-items:flex-end}
+.sc-word.open .sc-w{border:0}

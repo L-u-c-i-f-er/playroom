@@ -1,6 +1,7 @@
 // Playroom server: serves public/ and runs online tables over one WebSocket at /ws.
 //  - Table documents ("tables/ABCDE"): the host's browser saves the full game state; everyone else follows it.
 //    "tables/ABCDE-qr" holds the host's payment QR for paid tables, so it isn't re-sent with every move.
+//    "tables/ABCDE-ink-PID" is a Scribble artist's saved drawing, written by that player's own browser.
 //  - Rooms: who is at a table right now, plus each player's presence (their name and latest move).
 //  - Game requests from players, and a password-protected page where the developer reads them.
 // Game rules run in the host's browser, so this server never needs to know any game.
@@ -124,7 +125,7 @@ const server = http.createServer((req, res) => {
 /* ---------- live connections ---------- */
 const subs = new Map();    // doc path -> Set<ws>
 const rooms = new Map();   // room name -> Map<peer id, {ws, presence}>
-const DOC_PATH = /^tables\/[A-Z0-9]{5}(-qr)?$/, ROOM_NAME = /^[a-z0-9][a-z0-9_.-]{0,47}$/;
+const DOC_PATH = /^tables\/[A-Z0-9]{5}(-qr|-ink-[a-z0-9]{1,40})?$/, ROOM_NAME = /^[a-z0-9][a-z0-9_.-]{0,47}$/;
 const send = (ws, m) => ws.readyState === ws.OPEN && ws.send(JSON.stringify(m));
 const bytes = v => Buffer.byteLength(JSON.stringify(v) ?? '');
 const keyHash = k => crypto.createHash('sha256').update(String(k)).digest('hex');
