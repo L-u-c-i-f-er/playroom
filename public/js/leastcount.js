@@ -175,7 +175,7 @@ const LC = (() => {
         <span class="lc-bar" style="--p:${Math.min(100, (s.totals[p.id] || 0) / s.cfg.limit * 100)}%" aria-hidden="true"></span>
         ${p.out ? '<span class="chipst">Out</span>' : ''}</article>`).join('')}</section>
       <section class="rtable">
-        <div class="pile" id="deck"><div class="card sm back ${pick ? 'canpick' : ''}" ${pick ? 'data-do="lcpick" data-from="deck" role="button" tabindex="0" aria-label="Draw from the closed deck"' : ''}></div><span class="num">${s.deck.length} left</span></div>
+        <div class="pile" id="deck"><div class="pc sm down ${pick ? 'canpick' : ''}" ${pick ? 'data-do="lcpick" data-from="deck" role="button" tabindex="0" aria-label="Draw from the closed deck"' : ''}></div><span class="num">${s.deck.length} left</span></div>
         <div class="pile">${s.avail != null && s.pile.includes(s.avail) ? pc(s, s.avail, {cid:true, cls:openOk ? 'canpick' : '', attrs:openOk ? 'data-do="lcpick" data-from="open" role="button" tabindex="0" aria-label="Pick the open card"' : ''}) : '<div class="card sm ghost"></div>'}<span>Open card</span></div>
         ${s.step === 'pick' && s.lastThrow.length ? `<div class="pile"><div class="lc-thrown">${s.lastThrow.map(id => pc(s, id, {cls:'sm'})).join('')}</div><span>Just thrown</span></div>` : ''}
         <div class="pile"><div class="jk">${pc(s, s.joker)}</div><span>Wild: every ${RANK[s.jr]}</span></div>

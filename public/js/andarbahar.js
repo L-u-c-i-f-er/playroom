@@ -82,6 +82,7 @@ const AB = (() => {
         if (shown.n >= G.seq.length){
           clearInterval(timer);
           const me$ = P(G, me), d = me$?.last;
+          requestAnimationFrame(() => payout(G));
           showBanner({title:`${SIDE[G.winner]} wins!`, sub:mode !== 'local' && d != null ? (d > 0 ? `You won ${d} chips` : `You lost ${-d} chips`) : `Joker ${lbl(G.joker)} · card ${G.seq.length}`});
           sfx(mode !== 'local' && d < 0 ? 'err' : 'coin');
         }
@@ -91,11 +92,40 @@ const AB = (() => {
     return Math.min(shown.n, s.seq.length);
   }
   const card = (id, o = {}) => RUM.pc(null, id, o);
+  // Chips: a bet slides from the player's box to its lane; when the cards are all out, winnings slide back
+  // and losing chips slide to the dealer's shoe.
+  const laneEl = side => app.querySelector(`.ab-row[data-side="${side}"] .ab-pot`);
+  const boxEl = id => app.querySelector(`.ab-players [data-pid="${CSS.escape(id)}"] .stat`);
+  let betSeen = null;
+  function motion(s){
+    if (app.querySelector('.curtain')) return;
+    const prev = betSeen;
+    betSeen = {gid:s.gid, round:s.round, bets:Object.fromEntries(s.players.map(p => [p.id, p.bet ? p.bet.side + p.bet.amt : '']))};
+    if (!prev || prev.gid !== s.gid || prev.round !== s.round) return;
+    let k = 0;
+    for (const p of s.players) if (p.bet && prev.bets[p.id] !== p.bet.side + p.bet.amt) chipFly(boxEl(p.id), laneEl(p.bet.side), {n:Math.min(6, 2 + Math.round(p.bet.amt / 100)), delay:k++ * 100});
+  }
+  function payout(s){
+    let k = 0;
+    for (const p of s.players){
+      if (p.last > 0) chipFly(laneEl(s.winner), boxEl(p.id), {n:Math.min(8, 3 + Math.round(p.last / 100)), delay:k++ * 140});
+      else if (p.last < 0) chipFly(laneEl(p.prev?.side), app.querySelector('#deck'), {n:3, delay:k++ * 140});
+    }
+  }
+  // A small stack of chips for what's riding on a lane
+  const DEN = [[500, '#7c3aed'], [250, '#1f1f24'], [100, '#16a34a'], [50, '#dc2626'], [10, '#0ea5e9']];
+  function stack(n){
+    const out = []; let r = n;
+    for (const [v, c] of DEN){ let k = Math.floor(r / v); r -= k * v; while (k-- > 0 && out.length < 10) out.push(c); }
+    if (!out.length && n > 0) out.push('#0ea5e9');
+    return `<span class="pk-chips" aria-hidden="true">${out.reverse().map((c, i) => `<i style="--c:${c};--i:${i}"></i>`).join('')}</span>`;
+  }
 
   function art(){
-    return `<div class="ab-art">${card(23 + 13, {cls:'lg'}).replace('class="pc', 'class="pc ab-j')}
-      <div class="ab-lane" style="top:18%">${[3, 17, 29].map(id => card(id, {cls:'sm'})).join('')}</div>
-      <div class="ab-lane" style="bottom:12%">${[44, 8, 49].map(id => card(id, {cls:'sm'})).join('')}</div></div>`;
+    const fan = (ids, dir) => ids.map((id, i) => { const x = dir * (78 + i * 20), r = dir * (10 + i * 8);
+      return `<div class="fi" style="transform:translate(-50%,-50%) translate(${x}px,${i * 6}px) rotate(${r}deg);--r2:${r * 1.3}deg;--x2:${x * 1.3}px;--yy:${i * 6 - 4}px">${card(id, {cls:'sm'})}</div>`; }).join('');
+    return `<div class="ab-art">${fan([3, 17, 29], -1)}${fan([44, 8, 49], 1)}
+      <div class="fi ab-j" style="transform:translate(-50%,-50%) rotate(-5deg);--r2:-2deg;--x2:0px;--yy:-14px">${card(36, {cls:'lg'})}</div></div>`;
   }
   const rulesList = [
     ['Joker', 'The dealer turns up one card. Only its rank matters.'],
@@ -149,9 +179,11 @@ const AB = (() => {
   function view(s){
     const n = reveal(s), dealt = s.seq.slice(0, n), done = s.phase === 'done' && n >= s.seq.length;
     const dealer = mode === 'local' || isDealer(s, me);
-    const lane = side => `<div class="ab-row ${done && s.winner === side ? 'win' : ''}">
-      <div class="ab-label"><b>${SIDE[side]}</b><span>${side === 'andar' ? 'Inside · pays 0.9 : 1' : 'Outside · pays 1 : 1'}</span><span class="num">${s.players.filter(p => (p.bet || (s.phase === 'done' ? p.prev : null))?.side === side).reduce((a, p) => a + (p.bet || p.prev).amt, 0)} on it</span></div>
-      <div class="ab-cards">${dealt.filter(c => c.side === side).map((c, i, arr) => card(c.id, {cls:`sm ${done && i === arr.length - 1 && s.winner === side ? 'hit' : ''}`})).join('') || '<span class="muted">No cards yet</span>'}</div></div>`;
+    const lane = side => { const on = s.players.filter(p => (p.bet || (s.phase === 'done' ? p.prev : null))?.side === side).reduce((a, p) => a + (p.bet || p.prev).amt, 0);
+      return `<div class="ab-row ${done && s.winner === side ? 'win' : done ? 'lose' : ''}" data-side="${side}">
+      <div class="ab-label"><b>${SIDE[side]}</b><span>${side === 'andar' ? 'Inside · pays 0.9 : 1' : 'Outside · pays 1 : 1'}</span></div>
+      <div class="ab-pot">${on ? stack(on) : ''}<span class="num">${on ? on.toLocaleString() : 'No bets'}</span></div>
+      <div class="ab-cards">${dealt.filter(c => c.side === side).map((c, i, arr) => `<div class="ab-c" style="--r:${(rotOf(c.id) * .6).toFixed(1)}deg">${card(c.id, {cid:true, cls:`sm ${done && i === arr.length - 1 && s.winner === side ? 'hit' : ''}`})}</div>`).join('') || '<span class="ab-empty">Cards fall here</span>'}</div></div>`; };
     const players = [...s.players].sort((a, b) => b.chips - a.chips);
     const controls = p => {
       const st = stake[p.id] || Math.min(100, p.chips) || 0;
@@ -171,7 +203,11 @@ const AB = (() => {
         <div class="tools">${s.code ? `<span class="codechip">${esc(s.code)}</span>` : ''}<button class="tool" data-do="rules">Rules</button><button class="tool" data-do="mute">${muted ? 'Sound off' : 'Sound on'}</button><button class="tool" data-do="leave">Leave</button></div>
       </header>
       <section class="ab-table">
-        <div class="ab-joker">${s.joker != null ? card(s.joker, {cls:'lg'}) : '<div class="card back" style="--cw:96px"></div>'}<span class="eyebrow">${s.joker != null ? 'Joker' : 'Joker after bets'}</span></div>
+        <div class="ab-head">
+          <div class="ab-shoe" id="deck" aria-label="Dealer’s shoe"><div class="pc sm down"></div><span>Shoe</span></div>
+          <div class="ab-joker ${s.joker != null ? 'up' : ''}">${s.joker != null ? card(s.joker, {cid:true, cls:'lg'}) : '<div class="pc lg down"></div>'}<span class="eyebrow">${s.joker != null ? 'Joker' : 'Joker after bets'}</span></div>
+          <div class="ab-says"><b>${s.phase === 'bet' ? 'Place your bets' : done ? `${SIDE[s.winner]} wins` : 'Dealing…'}</b><span>${s.phase === 'bet' ? 'Pick a chip, then Andar or Bahar' : done ? `Card ${s.seq.length} matched the joker` : `${n} card${n === 1 ? '' : 's'} out`}</span></div>
+        </div>
         <div class="ab-lanes">${lane('andar')}${lane('bahar')}</div>
       </section>
       <div class="ab-bar">
@@ -181,7 +217,7 @@ const AB = (() => {
       </div>
       <section class="ab-players">${players.map(p => `<article class="opp ${p.id === me && mode !== 'local' ? 'is-turn' : ''}" data-pid="${esc(p.id)}">
         <div class="opp-head">${avatar(s, p)}<div class="opp-name"><b>${esc(p.name)}${p.id === me && mode !== 'local' ? ' (you)' : ''}</b><small>${p.topups ? `${p.topups} top-up${p.topups > 1 ? 's' : ''}` : '&nbsp;'}</small></div>
-          <div class="stat"><span class="num">${p.chips}</span><span>${done && p.last != null ? `<b class="${p.last > 0 ? 'up' : 'down'}">${p.last > 0 ? '+' : ''}${p.last}</b>` : p.bet ? `${p.bet.amt} on ${SIDE[p.bet.side]}` : 'chips'}</span></div></div>
+          <div class="stat"><span class="num">${s.phase === 'done' && !done ? p.chips - (p.last || 0) : p.chips}</span><span>${done && p.last != null ? `<b class="${p.last > 0 ? 'up' : 'down'}">${p.last > 0 ? '+' : ''}${p.last}</b>` : p.bet ? `${p.bet.amt} on ${SIDE[p.bet.side]}` : 'chips'}</span></div></div>
         ${canAct(p) ? controls(p) : ''}</article>`).join('')}</section>
     </div></div>${ui.modal === 'rules' ? rules() : ''}`;
   }
@@ -207,6 +243,6 @@ const AB = (() => {
     abresume:() => { G = store.get('andarbahar-local'); if (!G) return; mode = 'local'; ui = freshUI(); seenLog = -1; screen = 'game'; render(); },
   });
 
-  return {name:'Andar Bahar', min:1, max:12, cfg, newGame, apply, home, view, rules, art, rank};
+  return {name:'Andar Bahar', motion, min:1, max:12, cfg, newGame, apply, home, view, rules, art, rank};
 })();
 ENG.andarbahar = AB;

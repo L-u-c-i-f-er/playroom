@@ -340,7 +340,7 @@ const SOL = (() => {
     tick();
   }
 
-  return {name:'Solitaire', min:1, max:1, cfg, VARS, newGame, apply, needs, home, view, rules, art, take, fits, best, rank, suit,
+  return {dealFrom:'[data-do="solstock"], [data-do="soldeal"], .sol-slot', backHTML:() => '<div class="sol" style="height:100%"><div class="pc down" style="width:100%;height:100%"></div></div>', name:'Solitaire', min:1, max:1, cfg, VARS, newGame, apply, needs, home, view, rules, art, take, fits, best, rank, suit,
     onEvents:(fresh, s) => { if (fresh.some(e => e.kind === 'win')) cascade(s); }};
 })();
 ENG.solitaire = SOL;

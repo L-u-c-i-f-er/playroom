@@ -118,6 +118,6 @@ Hidden information (other players' hands) is sent to every browser at the table 
 
 **Table chat:** every online table has a chat button on the right edge, in the lobby and during play, with quick reactions. Messages travel with each player's live connection, so chat keeps working while the host's phone is away; nothing is stored.
 
-**Tic Tac Toe:** two players, online or side by side on one device. Rounds run as a series; X switches every round and draws are counted.
+**Tic Tac Toe:** 2–8 players, online or on one device, two at the board at a time: winner stays on, the loser goes to the back of the queue, and after a draw both step down if anyone is waiting. The challenger is X and moves first; when the same two meet again, X swaps. Friends can join between rounds.
 
-**Bingo:** the 5×5 number game for 2–8 players. Fill your grid with 1–25 (tap squares in order, or shuffle), take turns calling numbers, and be first to five complete lines (B-I-N-G-O). Players who reach five on the same call share the round.
+**Bingo:** the number grid game for 2–8 players. The host picks the grid: 5×5 (1–25, the classic), 6×6, 7×7 or 8×8 (1–64) for bigger groups. Fill your grid (tap squares in order, or shuffle), take turns calling numbers, and be first to five complete lines (B-I-N-G-O) on any size. Players who reach five on the same call share the round. Friends can join between rounds.

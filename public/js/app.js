@@ -154,8 +154,8 @@ const GAMES = [
    tags:['3–8 players', 'Blind & seen', 'Online', 'Pass & play'], art:() => TP.art()},
   {id:'bingo', name:'Bingo', blurb:'Fill a 5×5 grid with 1 to 25, take turns calling numbers, and be first to light up B-I-N-G-O.',
    tags:['2–8 players', 'Numbers 1–25', 'Online', 'Pass & play'], art:() => BINGO.art()},
-  {id:'tictactoe', name:'Tic Tac Toe', blurb:'X and O, three in a row. Play a series against a friend; X switches every round.',
-   tags:['2 players', 'Quick rounds', 'Online', 'One device'], art:() => TTT.art()},
+  {id:'tictactoe', name:'Tic Tac Toe', blurb:'X and O, three in a row. Bring the group: winner stays on and everyone else queues for a shot.',
+   tags:['2–8 players', 'Winner stays on', 'Online', 'One device'], art:() => TTT.art()},
 ];
 // Each game plugs in here: rules engine (newGame/apply/needs) plus its home and table views.
 const ENG = {dealmaker:{name:'Dealmaker', min:2, max:5, newGame, apply, needs, home:() => vHome(), view:s => vGame(s),
@@ -188,7 +188,7 @@ function vHub(){
     <section style="display:grid;gap:18px">
       <div class="shelf-head"><h2>Games</h2><span class="muted">${GAMES.length} ready to play</span></div>
       <div class="shelf">
-        ${GAMES.map(g => `<button class="tile" data-do="open" data-game="${g.id}" aria-label="Open ${esc(g.name)}">
+        ${GAMES.map((g, i) => `<button class="tile" data-do="open" data-game="${g.id}" style="--i:${i}" aria-label="Open ${esc(g.name)}">
           <div class="art" aria-hidden="true">${g.art()}</div><span class="go">Play</span>
           <div class="meta"><h3>${esc(g.name)}</h3><p>${esc(g.blurb)}</p><div class="tags">${g.tags.map(t => `<span>${esc(t)}</span>`).join('')}</div></div>
         </button>`).join('')}
@@ -828,6 +828,60 @@ function fly({from, to, html, flip = false, delay = 0, spin = 0, fade = false, d
   const end = () => { if (ended) return; ended = true; el.remove(); onDone?.(); };
   a.onfinish = end; setTimeout(end, delay + dur + 400);
 }
+// One card arcing in to where it now sits, from a point {x, y, w}; face down until mid-air when `down`.
+// Used by every card game for cards that just appeared: drawn, dealt, or played by someone else.
+function flyEl(el, from, {down = false, delay = 0, dur = 560} = {}){
+  const r = el.getBoundingClientRect(), w = r.width, h = r.height, to = {x:r.left + w / 2, y:r.top + h / 2};
+  const f = document.createElement('div'); f.className = 'gfly'; f.style.cssText = `width:${w}px;height:${h}px`;
+  const inner = document.createElement('div'); inner.className = 'gfly-in';
+  const front = el.cloneNode(true);
+  for (const k of ['--pw', '--cw']) front.style.setProperty(k, w + 'px');
+  front.style.visibility = '';
+  inner.innerHTML = `<div class="gfly-f"></div>${down ? `<div class="gfly-b">${ENG[GID].backHTML?.() || '<div class="pc down"></div>'}</div>` : ''}`;
+  inner.firstElementChild.append(front);
+  inner.querySelector('.gfly-b > *')?.style.setProperty('--pw', w + 'px');
+  f.append(inner); document.body.append(f);
+  el.style.visibility = 'hidden';
+  const at = (p, k, rot) => `translate(${p.x - w / 2}px,${p.y - h / 2}px) rotate(${rot}deg) scale(${k})`;
+  const mid = {x:(from.x + to.x) / 2, y:(from.y + to.y) / 2 - Math.min(90, Math.hypot(to.x - from.x, to.y - from.y) * .2)};
+  const a = f.animate([{transform:at(from, (from.w || w) / w, -12)}, {transform:at(mid, 1.1, -4), offset:.55}, {transform:at(to, 1, 0)}],
+    {duration:dur, delay, easing:'cubic-bezier(.22,.8,.25,1)', fill:'both'});
+  if (down) inner.animate([{transform:'rotateY(180deg)'}, {transform:'rotateY(180deg)', offset:.3}, {transform:'rotateY(0)'}], {duration:dur, delay, easing:'ease-in-out', fill:'both'});
+  setTimeout(() => sfx('flick'), delay);
+  let ended = false;
+  const end = () => { if (ended) return; ended = true; f.remove(); el.style.visibility = ''; el.classList.add('land'); setTimeout(() => el.classList.remove('land'), 320); };
+  a.onfinish = end; setTimeout(end, delay + dur + 500);
+}
+// Chips sliding across the table: a few discs arc from one element to another.
+const CHIP = ['#c8102e', '#15803d', '#18181c', '#d4a72c', '#7c3aed', '#1f6bd0'];
+function chipFly(from, to, {n = 4, delay = 0} = {}){
+  if (!from || !to || reduce) return;
+  const a = from.getBoundingClientRect(), b = to.getBoundingClientRect();
+  const p0 = {x:a.left + a.width / 2, y:a.top + a.height / 2}, p1 = {x:b.left + b.width / 2, y:b.top + b.height / 2};
+  for (let i = 0; i < n; i++){
+    const c = document.createElement('i'), j = (Math.random() - .5) * 22;
+    c.className = 'chipfly'; c.style.setProperty('--c', CHIP[Math.random() * CHIP.length | 0]); document.body.append(c);
+    const mid = {x:(p0.x + p1.x) / 2 + j, y:Math.min(p0.y, p1.y) - 36 - Math.random() * 24};
+    c.animate([{transform:`translate(${p0.x}px,${p0.y}px) scale(.6)`, opacity:0}, {opacity:1, offset:.12}, {transform:`translate(${mid.x}px,${mid.y}px) scale(1.1)`, offset:.5},
+      {transform:`translate(${p1.x + j / 2}px,${p1.y - i * 3}px) scale(1)`, opacity:1}], {duration:560, delay:delay + i * 70, easing:'cubic-bezier(.3,.7,.3,1)', fill:'both'});
+    setTimeout(() => c.remove(), delay + i * 70 + 700);
+  }
+  setTimeout(() => sfx('coin'), delay + 380);
+}
+// Poker and Teen Patti: what each player puts in slides from their seat to the pot (blinds and boot included,
+// as a hand starts), and the winnings slide from the pot to the winners.
+let chipSeen = null;
+function chipMotion(s, potSel){
+  if (app.querySelector('.curtain')) return;   // behind the pass screen: show it once the next player looks
+  const prev = chipSeen;
+  chipSeen = {gid:s.gid, phase:s.phase, total:Object.fromEntries(s.players.map(p => [p.id, p.total || 0]))};
+  if (s.phase === 'lobby') return;
+  const base = prev?.gid === s.gid ? prev.total : {}, pot = app.querySelector(potSel);   // a new hand (or a first look): blinds and boot slide in
+  const seat = id => app.querySelector(`[data-pid="${CSS.escape(id)}"] [class$="-plate"]`) || app.querySelector(`[data-pid="${CSS.escape(id)}"]`);
+  let k = 0;
+  for (const p of s.players){ const d = (p.total || 0) - (base[p.id] || 0); if (d > 0) chipFly(seat(p.id), pot, {n:Math.min(7, 2 + Math.round(Math.log2(1 + d / 10))), delay:k++ * 120}); }
+  if (prev && s.phase === 'over' && (prev.phase !== 'over' || prev.gid !== s.gid)) for (const p of s.players) if (p.won > 0) chipFly(pot, seat(p.id), {n:9, delay:450 + k++ * 160});
+}
 // Compare with the last rendered state: new hand cards fly from the deck, new discards fly from whoever held them.
 function flights(s, before){
   const done = new Set();
@@ -877,7 +931,7 @@ function render(){
 }
 function renderNow(){
   const before = new Map();
-  if (!reduce) app.querySelectorAll('[data-cid]').forEach(el => before.set(el.dataset.cid, el.getBoundingClientRect()));
+  if (!reduce && !app.querySelector('.curtain')) app.querySelectorAll('[data-cid]').forEach(el => before.set(el.dataset.cid, el.getBoundingClientRect()));   // cards under a pass screen don't count as seen
   if (mode === 'local' && G && G.phase !== 'lobby'){ const nd = ENG[GID].needs?.(G); if (nd?.length) me = nd[0]; }
   const s = G && viewState();
   const focusId = document.activeElement?.id, selStart = document.activeElement?.selectionStart;
@@ -898,19 +952,28 @@ function renderNow(){
   if (focusId){ const f = document.getElementById(focusId); if (f){ f.focus(); try { f.setSelectionRange(selStart, selStart); } catch {} } }
   if (s && screen === 'game') events(s);
   const flown = !(s && screen === 'game' && s.players && s.phase !== 'lobby') ? new Set() : GID === 'dealmaker' ? flights(s, before) : ENG[GID].motion?.(s, before) || new Set();
+  const was = prevS;
   if (!(s && screen === 'game' && s.phase !== 'lobby')) prevS = null;
   else if (!app.querySelector('.curtain')) prevS = clone(s);   // behind the pass screen, keep the old state so the next player sees their draws
-  if (reduce || !before.size || !s) return;
-  const meP = s.players && P(s, me);
+  if (reduce || !s || app.querySelector('.curtain')) return;
+  // A new round (or the first look at one) is dealt in from the deck; otherwise a card that wasn't on screen
+  // comes from the player who held it, or from the deck.
+  const cards = s.players || ENG[GID].dealFrom;   // games with players, or one that names where its cards come from (Solitaire)
+  const deal = cards && s.phase !== 'lobby' && (dealAnim || !was || was.gid !== s.gid);
+  if (deal && GID !== 'dealmaker') dealAnim = false;
+  const deckR = rectOf(ENG[GID].dealFrom || '#deck .card, #deck .uc, #deck .pkc, #deck .pc');
+  let k = 0;
   app.querySelectorAll('[data-cid]').forEach(el => {
     const b = el.getBoundingClientRect(), id = el.dataset.cid;
     if (flown.has(id) || !b.width) return;
-    let a = before.get(id);
+    let a = deal ? null : before.get(id);
     if (!a){
-      const fromDeck = meP?.hand.includes(+id);
-      const src = fromDeck ? rectOf('#deck .card') : rectOf(`[data-pid="${CSS.escape(s.pending?.actor ?? s.players?.[s.turn]?.id ?? '')}"]`);
-      if (!src) return;
-      a = fromDeck ? src : {left:src.left + src.width / 2 - b.width * .2, top:src.top + src.height / 2 - b.height * .2, width:b.width * .4};
+      if (!cards || (!deal && !was) || k > (deal ? 60 : 24)) return;
+      const owner = deal ? null : was.players?.find(p => Array.isArray(p.hand) && p.hand.some(h => String(h) === id));
+      if (owner?.id === me) return;   // already yours: it doesn't come from anywhere
+      const seat = owner && owner.id !== me ? rectOf(`[data-pid="${CSS.escape(owner.id)}"]`) : null, src = seat || deckR;
+      if (src) flyEl(el, ctr(src, Math.min(src.width, b.width)), {down:true, delay:k++ * (deal ? (GID === 'solitaire' ? 40 : 70) : 110)});
+      return;
     }
     const dx = a.left - b.left, dy = a.top - b.top, sc = a.width / b.width;
     if (Math.abs(dx) < 1 && Math.abs(dy) < 1 && Math.abs(sc - 1) < .02) return;
@@ -962,6 +1025,7 @@ function rematch(){
   const keep = {game:GID, cfg:G.cfg, totals, round:G.round, pay:G.pay, wait:G.wait, nolate:G.nolate, timer:G.timer};
   if (mode === 'host') Object.assign(keep, {code:G.code, host:G.host, ack:G.ack});
   if (mode === 'local' && G.host) keep.host = G.host;
+  Object.assign(keep, ENG[GID].carry?.(G));   // anything a game passes from one round to the next (Tic Tac Toe's queue)
   G = {...ENG[GID].newGame(seats, keep), v:(G.v || 0) + 1};
   ui = freshUI(); seenLog = -1; dealAnim = true;
   if (mode === 'host') persist(); else store.set(LKEY(), G);
@@ -1212,6 +1276,14 @@ app.addEventListener('change', e => {
   if (mode === 'host' && G?.phase === 'lobby'){ G.cfg = {...G.cfg, [k]:v}; G.v++; persist(); }
   render();
 });
+// Game tiles lean toward the pointer, with a glare that follows it.
+app.addEventListener('pointermove', e => {
+  const t = e.target.closest?.('.tile:not(.soon)'); if (!t || reduce || e.pointerType === 'touch') return;
+  const r = t.getBoundingClientRect(), x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
+  t.style.setProperty('--ry', `${(x - .5) * 10}deg`); t.style.setProperty('--rx', `${(.5 - y) * 8}deg`);
+  t.style.setProperty('--mx', `${x * 100}%`); t.style.setProperty('--my', `${y * 100}%`);
+});
+app.addEventListener('pointerout', e => { const t = e.target.closest?.('.tile'); if (t && !t.contains(e.relatedTarget)) for (const k of ['--rx', '--ry']) t.style.removeProperty(k); });
 app.addEventListener('dragstart', e => { const d = e.target.closest('[data-drag]'); if (d) e.dataTransfer.setData('text/plain', d.dataset.drag); });
 app.addEventListener('dragover', e => { const z = e.target.closest('[data-drop]'); if (z){ e.preventDefault(); z.classList.add('over'); } });
 app.addEventListener('dragleave', e => e.target.closest('[data-drop]')?.classList.remove('over'));

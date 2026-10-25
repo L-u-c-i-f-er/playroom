@@ -194,11 +194,14 @@ const RUM = (() => {
   }
   const setArr = (s, g) => { arr[s.gid + me] = g.filter(x => x.length); };
   const KL = {pure:'Pure sequence', seq:'Sequence', set:'Set'};
+  // The playing card every card game here shares: an index in two corners, a big suit (bigger on aces)
+  // or a framed court panel for J, Q, K, and a wild-joker badge in Rummy and Least Count.
   function pc(s, id, o = {}){
     const at = `${o.cid ? `data-cid="${id}"` : ''} ${o.attrs || ''}`;
-    if (id >= 104) return `<div class="pc joker ${o.cls || ''}" ${at}><span class="pr">★</span><span class="pj">JOKER</span></div>`;
-    const c = card(id), w = s && isWild(s, id);
-    return `<div class="pc ${c.suit === 1 || c.suit === 2 ? 'red' : ''} ${w ? 'wild' : ''} ${o.cls || ''}" ${at}><span class="pr">${RANK[c.rank]}<i>${SUIT[c.suit]}</i></span><span class="pbig">${SUIT[c.suit]}</span>${w ? '<span class="pw">J</span>' : ''}</div>`;
+    if (id >= 104) return `<div class="pc joker ${o.cls || ''}" ${at}><span class="pr">★</span><span class="pj">JOKER</span><span class="pr r">★</span></div>`;
+    const c = card(id), w = s && isWild(s, id), r = RANK[c.rank], su = SUIT[c.suit], ix = `${r}<i>${su}</i>`;
+    const mid = c.rank > 10 ? `<span class="pface"><b>${r}</b><i>${su}</i></span>` : `<span class="pbig ${c.rank === 1 ? 'ace' : ''}">${su}</span>`;
+    return `<div class="pc ${c.suit === 1 || c.suit === 2 ? 'red' : ''} ${w ? 'wild' : ''} ${o.cls || ''}" ${at}><span class="pr">${ix}</span>${mid}<span class="pr r">${ix}</span>${w ? '<span class="pw">J</span>' : ''}</div>`;
   }
   const miniGroups = (s, gs) => `<div class="mini-groups">${gs.map(g => `<div class="${classify(s, g) ? 'ok' : ''}">${g.map(id => pc(s, id, {cls:'xs'})).join('')}</div>`).join('')}</div>`;
 
@@ -287,7 +290,7 @@ const RUM = (() => {
         <div class="opp-head">${avatar(s, p)}<div class="opp-name"><b>${esc(p.name)}</b><small><span class="dot ${!live || live.has(p.id) ? 'on' : ''}"></span><span class="backs">${'<i></i>'.repeat(Math.min(p.hand.length, 8))}</span>&nbsp;${p.hand.length} cards</small></div>
         <div class="stat"><span class="num">${s.totals[p.id] || 0}</span><span>${s.cfg?.pool ? `of ${s.cfg.pool}` : 'total pts'}</span></div></div>${status(p)}</article>`).join('')}</section>
       <section class="rtable">
-        <div class="pile" id="deck"><div class="card sm back ${canPick ? 'canpick' : ''}" ${canPick ? 'data-do="rdraw" data-from="deck" role="button" tabindex="0" aria-label="Draw from the closed deck"' : ''}></div><span class="num">${s.deck.length} left</span></div>
+        <div class="pile" id="deck"><div class="pc sm down ${canPick ? 'canpick' : ''}" ${canPick ? 'data-do="rdraw" data-from="deck" role="button" tabindex="0" aria-label="Draw from the closed deck"' : ''}></div><span class="num">${s.deck.length} left</span></div>
         <div class="pile">${top != null ? pc(s, top, {cid:true, cls:canPick && !isWild(s, top) ? 'canpick' : '', attrs:canPick && !isWild(s, top) ? 'data-do="rdraw" data-from="pile" role="button" tabindex="0" aria-label="Pick the open card"' : ''}) : '<div class="card sm ghost"></div>'}<span>Open pile</span></div>
         <div class="pile"><div class="jk">${pc(s, s.joker)}</div><span>Wild: every ${RANK[s.jr]}</span></div>
         <div class="status"><span class="big">${big}</span>${hint ? `<span class="hint">${hint}</span>` : ''}</div>

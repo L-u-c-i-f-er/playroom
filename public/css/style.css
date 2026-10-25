@@ -1488,3 +1488,217 @@ body[data-game="uno"]{background:radial-gradient(ellipse 45% 38% at 50% 0,rgba(2
 @media (min-width:701px){ .uno-say{margin-bottom:14px} }
 
 .sheet textarea{width:100%;min-width:0;background:rgba(0,0,0,.28);border:1px solid var(--line);border-radius:12px;padding:11px 14px;color:var(--text);font:500 16px/1.4 var(--body);resize:vertical}
+/* Bingo grids from 5×5 to 8×8: columns and type follow the size (--n, set on the grid) */
+.bg-grid{grid-template-columns:repeat(var(--n,5),1fr);width:min(100%,calc(var(--n,5) * 92px));gap:calc(40px / var(--n,5))}
+.bc{font-size:calc(min(6vw,32px) * 5 / var(--n,5) + 4px);border-radius:calc(80px / var(--n,5))}
+.bg-grid.mini{width:calc(var(--n,5) * 30px)}
+.bg-grid.mini .bc{font-size:calc(65px / var(--n,5))}
+.bg-sizes{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px}
+.ttt-queue{display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center;justify-content:center;margin:-6px 0 14px;font-size:13px}
+.ttt-q{padding:4px 10px;border-radius:999px;background:rgba(255,255,255,.07);border:1px solid var(--line);font-weight:600}
+.ttt-q small{color:var(--brass);margin-left:4px}
+.ttt-q.me{border-color:var(--brass)}
+
+/* =====================================================================
+   PLAYING CARDS (Rummy, Least Count, Teen Patti, Andar Bahar, Mafia,
+   Solitaire): card stock with a sheen and a visible edge, an index in two
+   corners, a big centre suit, framed court cards, and a lattice back with
+   a gold medallion, tinted per game through --bk / --bk2.
+   ===================================================================== */
+.pc{background:radial-gradient(120% 90% at 28% 12%,#fff 0,#fbf7ee 55%,#efe7d6 100%);box-shadow:0 1px 0 #ddd5c3,0 2px 0 #c0b7a4,0 3px 0 #978f7e,0 9px 18px rgba(0,0,0,.35);overflow:hidden}
+.pc::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;background:linear-gradient(155deg,rgba(255,255,255,.6) 0,rgba(255,255,255,0) 30%);box-shadow:inset 0 0 0 1px rgba(0,0,0,.1)}
+.pc .pr.r{left:auto;top:auto;right:8%;bottom:5%;transform:rotate(180deg)}
+.pc .pbig{left:50%;top:52%;right:auto;bottom:auto;transform:translate(-50%,-50%);font-size:calc(var(--pw) * .5);filter:drop-shadow(0 1px 0 rgba(0,0,0,.12))}
+.pc .pbig.ace{font-size:calc(var(--pw) * .74)}
+.pc .pface{position:absolute;inset:21% 19%;border-radius:calc(var(--pw) * .06);display:grid;place-content:center;justify-items:center;gap:2px;background:linear-gradient(160deg,#fff6dc,#ecd08c);box-shadow:inset 0 0 0 1.5px currentColor,inset 0 0 0 calc(var(--pw) * .04) #fff6dc,inset 0 0 0 calc(var(--pw) * .05) currentColor}
+.pc.red .pface{background:linear-gradient(160deg,#ffece6,#f4bfb3)}
+.pc .pface b{font:700 calc(var(--pw) * .34)/1 'Libre Baskerville',Georgia,serif}
+.pc .pface i{font-style:normal;font-size:calc(var(--pw) * .2);line-height:1}
+.pc.joker .pr.r{right:8%}
+.pc.xs .pbig,.pc.xs .pface,.pc.xs .pr.r{display:none}
+.pc.xs .pr{left:50%;top:50%;transform:translate(-50%,-50%);font-size:calc(var(--pw) * .3)}
+.pc.down{--bk:#7c1f30;--bk2:#3d0a16;
+  background:radial-gradient(circle,rgba(255,226,160,.95) 0 7%,transparent 7.5%),radial-gradient(circle,transparent 0 12%,rgba(255,226,160,.7) 12.5% 13.5%,transparent 14%),
+    repeating-linear-gradient(45deg,rgba(255,226,160,.2) 0 1px,transparent 1px 7px),repeating-linear-gradient(-45deg,rgba(255,226,160,.2) 0 1px,transparent 1px 7px),linear-gradient(160deg,var(--bk),var(--bk2));
+  box-shadow:inset 0 0 0 calc(var(--pw) * .05) #f6efe0,inset 0 0 0 calc(var(--pw) * .065) var(--bk2),0 1px 0 #ddd5c3,0 2px 0 #c0b7a4,0 3px 0 #978f7e,0 9px 18px rgba(0,0,0,.35)}
+[data-game="leastcount"] .pc.down{--bk:#1f6a42;--bk2:#0c2f1c}
+[data-game="andarbahar"] .pc.down{--bk:#1f4fa8;--bk2:#0b1f4d}
+[data-game="mafia"] .pc.down{--bk:#262a5e;--bk2:#0b0c22}
+/* a deck looks like a deck */
+#deck .pc.down{box-shadow:inset 0 0 0 calc(var(--pw) * .05) #f6efe0,inset 0 0 0 calc(var(--pw) * .065) var(--bk2),2px 2px 0 -1px #f6efe0,3px 3px 0 -1px #6b6355,5px 5px 0 -1px #f6efe0,6px 6px 0 -1px #6b6355,8px 8px 0 -1px #f6efe0,9px 9px 0 -1px #6b6355,0 14px 24px rgba(0,0,0,.45)}
+/* cards in flight (flyEl in app.js) and the little settle when they land */
+.gfly{position:fixed;left:0;top:0;z-index:66;pointer-events:none;perspective:1000px}
+.gfly-in{position:relative;width:100%;height:100%;transform-style:preserve-3d}
+.gfly-f,.gfly-b{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden}
+.gfly-b{transform:rotateY(180deg)}
+.gfly-f>*,.gfly-b>*{width:100%!important;height:100%;margin:0!important;transform:none!important;box-shadow:0 16px 30px rgba(0,0,0,.45)!important}
+.land{animation:uland .3s cubic-bezier(.3,1.6,.5,1)}
+
+/* =====================================================================
+   3D ROOMS for the table games laid out as seats, a table and a hand
+   (Rummy, Least Count, Dealmaker): glass seats that glow on their turn,
+   the table leaning back under a spotlight with real thickness, a glass
+   tray for your hand, and cards that lift as you point at them.
+   ===================================================================== */
+.opp{background:linear-gradient(160deg,rgba(255,255,255,.09),rgba(255,255,255,.015) 60%),var(--panel);box-shadow:0 12px 26px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.12);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);transition:border-color .3s,box-shadow .3s,transform .3s}
+.opp.is-turn{transform:translateY(-3px);border-color:var(--brass);box-shadow:0 0 0 1px var(--brass),0 0 32px color-mix(in srgb,var(--brass) 40%,transparent),0 16px 30px rgba(0,0,0,.4);animation:seatglow 2.2s ease-in-out infinite}
+@keyframes seatglow{50%{box-shadow:0 0 0 1px var(--brass),0 0 14px color-mix(in srgb,var(--brass) 25%,transparent),0 16px 30px rgba(0,0,0,.4)}}
+.backs i{width:11px;height:16px;border-radius:2px;margin-right:-6px;background:repeating-linear-gradient(45deg,rgba(255,226,160,.35) 0 1px,transparent 1px 3px),linear-gradient(160deg,var(--bk,#7c1f30),var(--bk2,#3d0a16));box-shadow:0 0 0 1px #f6efe0,1px 2px 3px rgba(0,0,0,.4);transform:rotate(calc((var(--k,0) - 3) * 4deg))}
+.backs i:nth-child(1){--k:0}.backs i:nth-child(2){--k:1}.backs i:nth-child(3){--k:2}.backs i:nth-child(4){--k:3}.backs i:nth-child(5){--k:4}.backs i:nth-child(6){--k:5}.backs i:nth-child(7){--k:6}.backs i:nth-child(8){--k:7}
+[data-game="leastcount"] .backs i{--bk:#1f6a42;--bk2:#0c2f1c}
+.mine{background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.01) 40%),var(--panel);box-shadow:0 -10px 40px rgba(0,0,0,.25),inset 0 1px 0 rgba(255,255,255,.12);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.mine.is-turn{animation:seatglow 2.2s ease-in-out infinite;border-color:var(--brass)}
+.rslot{transition:transform .22s cubic-bezier(.2,.9,.25,1)}
+.rslot:hover{transform:translateY(-14px) rotate(-2deg)}
+.rslot.sel{transform:translateY(-20px)}
+.rslot .pc{transition:box-shadow .2s}
+.rslot:hover .pc{box-shadow:0 1px 0 #ddd5c3,0 2px 0 #c0b7a4,0 3px 0 #978f7e,0 18px 26px rgba(0,0,0,.45)}
+.rtable{position:relative;transform:perspective(1300px) rotateX(12deg);transform-origin:50% 70%;transition:transform .4s}
+.rtable::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;background:radial-gradient(ellipse 55% 60% at 50% 20%,rgba(255,255,255,.13),transparent 70%)}
+.rtable .pile{position:relative;z-index:1}
+.rtable .status{position:relative;z-index:1}
+[data-game="rummy"] .rtable{box-shadow:0 0 0 7px #3a1a0c,0 0 0 9px #d9b25a,0 0 0 10px #3a1a0c,0 16px 0 9px #22100a,0 18px 0 9px #120805,0 46px 60px rgba(0,0,0,.6),inset 0 0 50px rgba(0,0,0,.45)}
+[data-game="leastcount"] .rtable{box-shadow:inset 0 0 0 3px #16532f,inset 0 0 0 5px rgba(255,255,255,.25),0 0 0 8px #7a4a24,0 0 0 9px #3a200e,0 14px 0 9px #4b2b14,0 16px 0 9px #24140a,0 40px 50px rgba(0,0,0,.55)}
+[data-game="leastcount"] .opps{box-shadow:inset 0 0 30px rgba(0,0,0,.5),0 0 0 2px #5a3720,0 10px 0 2px #3b230f,0 26px 40px rgba(0,0,0,.5)}
+[data-game="leastcount"] .opp,[data-game="leastcount"] .opp.is-turn{background:transparent;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none;transform:none;animation:none}
+[data-game="leastcount"] .opp.is-turn{background:radial-gradient(closest-side,rgba(244,211,94,.12),transparent)}
+.sol .pc .pface{inset:26% 20% 16%}
+@media (prefers-reduced-motion:reduce){ .opp.is-turn,.mine.is-turn{animation:none} }
+
+/* a chip in flight (chipFly in app.js) */
+.chipfly{position:fixed;left:-13px;top:-6px;width:26px;height:12px;z-index:66;pointer-events:none;border-radius:50%;background:var(--c);
+  box-shadow:inset 0 0 0 2px rgba(255,255,255,.9),inset 0 0 0 4px var(--c),inset 0 0 0 5px rgba(255,255,255,.5),0 3px 0 rgba(0,0,0,.4),0 6px 10px rgba(0,0,0,.35)}
+
+/* =====================================================================
+   OVAL TABLES in 3D (Teen Patti, Poker, Mafia): a table edge you can see,
+   a soft spotlight on the cloth, and a shadow pooled underneath.
+   ===================================================================== */
+.tp-cloth{box-shadow:0 0 0 3px #e2b65b,0 0 0 9px #3a1205,0 0 0 11px #e2b65b,0 16px 0 11px #2a0c03,0 18px 0 11px #160601,0 50px 80px rgba(0,0,0,.65),inset 0 0 50px rgba(0,0,0,.45)}
+.tp-cloth::after,.pk-felt::after,.mf-felt::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;background:radial-gradient(ellipse 50% 55% at 50% 22%,rgba(255,255,255,.14),transparent 70%)}
+.pk-rail{box-shadow:0 18px 0 #2a1205,0 20px 0 #150902,0 50px 90px rgba(0,0,0,.75),inset 0 2px 0 rgba(255,220,180,.25),inset 0 -4px 8px rgba(0,0,0,.55)}
+.mf-felt{box-shadow:0 0 0 10px #5a3420,0 0 0 12px #2b170d,0 0 0 13px rgba(214,180,106,.45),0 16px 0 12px #2a160b,0 18px 0 12px #140a04,0 46px 70px rgba(0,0,0,.65),inset 0 0 44px rgba(0,0,0,.45)}
+.mf-felt>*{position:relative;z-index:1}
+.tp-plate,.pk-plate{transition:transform .3s,box-shadow .3s}
+.tp-seat.up .tp-plate,.pk-seat.up .pk-plate{transform:translateY(-3px) scale(1.05)}
+
+/* =====================================================================
+   ANDAR BAHAR as a casino table: a raised blue felt with a gold rim and
+   real thickness, the dealer's shoe and the joker under a spotlight, and
+   two lanes printed on the felt, each with the chips riding on it. Cards
+   deal out of the shoe and flip as they land.
+   ===================================================================== */
+[data-game="andarbahar"] .ab-table{position:relative;display:grid;grid-template-columns:minmax(0,1fr);gap:14px;padding:22px 26px 46px;margin:14px 0 26px;
+  border:0;border-radius:36px 36px 200px 200px/36px 36px 80px 80px;
+  background:radial-gradient(ellipse 60% 50% at 50% 0,rgba(255,255,255,.16),transparent 70%),radial-gradient(110% 120% at 50% 0%,#2c6ad6,#123f94 60%,#0b2a66);
+  box-shadow:0 0 0 3px #e6c35c,0 0 0 10px #4a2a10,0 0 0 12px #e6c35c,0 18px 0 12px #2a1606,0 20px 0 12px #140a02,0 50px 80px rgba(0,0,0,.6),inset 0 0 60px rgba(0,0,0,.35)}
+.ab-head{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:16px}
+.ab-shoe{justify-self:start;display:grid;justify-items:center;gap:6px;color:var(--muted);font:600 11px var(--body);letter-spacing:.14em;text-transform:uppercase}
+.ab-shoe .pc{transform:rotate(-8deg)}
+.ab-joker{position:relative;padding:10px 16px 6px;border-radius:18px}
+.ab-joker::before{content:"";position:absolute;inset:-14px;border-radius:50%;background:radial-gradient(closest-side,rgba(230,195,92,.35),transparent);opacity:0;transition:opacity .6s}
+.ab-joker.up::before{opacity:1}
+.ab-joker .pc{position:relative}
+.ab-says{justify-self:end;display:grid;gap:2px;text-align:right}
+.ab-says b{font:800 clamp(18px,2.4vw,26px)/1.1 var(--display);letter-spacing:.04em;color:#fff}
+.ab-says span{font-size:13px;color:var(--muted)}
+[data-game="andarbahar"] .ab-lanes{gap:12px}
+[data-game="andarbahar"] .ab-row{grid-template-columns:150px 110px minmax(0,1fr);border:2px solid rgba(230,195,92,.55);border-radius:16px;background:linear-gradient(90deg,rgba(200,16,46,.28),rgba(200,16,46,.08));box-shadow:inset 0 0 0 1px rgba(255,255,255,.06),inset 0 10px 30px rgba(0,0,0,.25);padding:10px 14px;transition:box-shadow .4s,border-color .4s,opacity .4s}
+[data-game="andarbahar"] .ab-row+.ab-row{background:linear-gradient(90deg,rgba(245,241,230,.16),rgba(245,241,230,.04))}
+[data-game="andarbahar"] .ab-row.win{border-color:#ffe28a;box-shadow:0 0 0 2px #ffe28a,0 0 40px rgba(255,226,138,.5),inset 0 0 30px rgba(255,226,138,.2)}
+[data-game="andarbahar"] .ab-row.lose{opacity:.6}
+.ab-pot{display:flex;align-items:flex-end;gap:8px;min-height:44px}
+.ab-pot .num{font:700 15px var(--body);color:#fff}
+.ab-pot .pk-chips{transform:scale(1.15);transform-origin:bottom left}
+.ab-cards{min-height:96px;padding:6px 4px}
+.ab-c{transform:rotate(var(--r));transition:transform .3s}
+.ab-c+.ab-c{margin-left:-30px}
+.ab-cards .pc{animation:none}
+.ab-empty{font:italic 500 13px var(--body);color:rgba(255,255,255,.35)}
+[data-game="andarbahar"] .ab-players .opp .stat .num{font:800 22px var(--body);color:#ffe28a}
+@media (max-width:700px){
+  [data-game="andarbahar"] .ab-table{padding:16px 12px 34px;border-radius:24px 24px 110px 110px/24px 24px 50px 50px}
+  .ab-head{grid-template-columns:auto 1fr;gap:10px}
+  .ab-says{grid-column:1/-1;justify-self:center;text-align:center}
+  [data-game="andarbahar"] .ab-row{grid-template-columns:1fr auto;padding:8px 10px}
+  [data-game="andarbahar"] .ab-row .ab-cards{grid-column:1/-1}
+  .ab-label b{font-size:22px!important}
+}
+
+/* opponents' card fans sit clear of the count beside them */
+.backs{margin-right:10px;padding-left:2px}
+
+/* =====================================================================
+   TAMBOLA in 3D: called numbers become glossy balls that drop into their
+   sockets, uncalled ones are recessed sockets, and the big ball has a
+   proper sphere shading and a shadow on the table.
+   ===================================================================== */
+[data-game="tambola"] .b9{position:relative;background:radial-gradient(circle at 50% 62%,rgba(0,0,0,.32),rgba(0,0,0,.12) 72%);box-shadow:inset 0 3px 6px rgba(0,0,0,.55),0 1px 0 rgba(255,255,255,.08);color:rgba(197,140,179,.75)}
+[data-game="tambola"] .b9.on{background:radial-gradient(circle,#fff 0 37%,transparent 38%),radial-gradient(circle at 32% 26%,color-mix(in srgb,var(--bc) 35%,#fff),var(--bc) 46%,color-mix(in srgb,var(--bc) 55%,#000) 100%);
+  box-shadow:0 4px 8px rgba(0,0,0,.45),inset -2px -3px 5px rgba(0,0,0,.25);color:#2a0820}
+[data-game="tambola"] .b9.on::after{content:"";position:absolute;left:20%;top:9%;width:30%;height:18%;border-radius:50%;background:linear-gradient(rgba(255,255,255,.85),rgba(255,255,255,0));transform:rotate(-24deg);pointer-events:none}
+[data-game="tambola"] .b9.last{animation:b9drop .7s cubic-bezier(.3,1.5,.5,1);z-index:1}
+@keyframes b9drop{0%{transform:translateY(-46px) scale(.5);opacity:0}60%{transform:translateY(3px) scale(1.12);opacity:1}100%{transform:none}}
+[data-game="tambola"] .ball{background:radial-gradient(circle,#fff 0 44%,transparent 45%),radial-gradient(circle at 32% 26%,color-mix(in srgb,var(--bc) 35%,#fff),var(--bc) 46%,color-mix(in srgb,var(--bc) 50%,#000) 100%);
+  box-shadow:inset -12px -18px 30px rgba(0,0,0,.28),inset 8px 10px 20px rgba(255,255,255,.3),0 26px 40px rgba(0,0,0,.45)}
+[data-game="tambola"] .caller{position:relative}
+[data-game="tambola"] .caller .ball+*{position:relative}
+[data-game="tambola"] .ball.pop{animation:tamroll .9s cubic-bezier(.2,.9,.3,1.2)}
+@keyframes tamroll{0%{transform:translateX(-120px) rotate(-300deg) scale(.6);opacity:0}70%{transform:translateX(8px) rotate(14deg) scale(1.04);opacity:1}100%{transform:none}}
+[data-game="tambola"] .mball{position:relative;background:radial-gradient(circle,#fff 0 40%,transparent 42%),radial-gradient(circle at 32% 26%,color-mix(in srgb,var(--bc) 35%,#fff),var(--bc) 46%,color-mix(in srgb,var(--bc) 55%,#000) 100%);box-shadow:0 3px 6px rgba(0,0,0,.4)}
+[data-game="tambola"] .panel{background:linear-gradient(160deg,rgba(255,255,255,.08),rgba(255,255,255,.015) 60%),var(--panel);box-shadow:0 18px 40px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.1)}
+
+/* =====================================================================
+   DEALMAKER: the draw and discard piles on a raised felt slab under a
+   spotlight, glass panels for players.
+   ===================================================================== */
+[data-game="dealmaker"] .mid{position:relative;width:fit-content;max-width:100%;margin:6px auto 12px;padding:18px 34px;border-radius:26px;
+  background:radial-gradient(ellipse 60% 70% at 50% 15%,rgba(255,255,255,.12),transparent 70%),radial-gradient(closest-side,#1d5d50,#123d35);
+  box-shadow:0 0 0 2px rgba(228,188,108,.55),0 0 0 8px #0e2a25,0 0 0 9px rgba(228,188,108,.35),0 12px 0 9px #081a17,0 34px 50px rgba(0,0,0,.5),inset 0 0 40px rgba(0,0,0,.35);
+  transform:perspective(1200px) rotateX(10deg)}
+
+/* =====================================================================
+   SOLITAIRE: a spotlight and vignette on the felt, cards with an edge.
+   ===================================================================== */
+body[data-game="solitaire"]::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;background:radial-gradient(ellipse 70% 60% at 50% 30%,rgba(255,255,255,.08),transparent 60%),radial-gradient(ellipse at center,transparent 55%,rgba(0,0,0,.45))}
+[data-game="solitaire"] #app{position:relative;z-index:1}
+.sol .pc{box-shadow:0 1px 0 #d6cfbd,0 2px 0 #a8a08e,0 4px 8px rgba(0,0,0,.3)}
+.sol .pc.down{box-shadow:inset 0 0 0 calc(var(--pw) * .05) #f6efe0,0 1px 0 #d6cfbd,0 2px 0 #a8a08e,0 4px 8px rgba(0,0,0,.3)}
+
+/* =====================================================================
+   THE HUB: tiles rise in one after another, lean toward the pointer with a
+   glare that follows it, and each one's art is lit in its game's colours.
+   ===================================================================== */
+.shelf{perspective:1400px}
+.tile{transform:perspective(900px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg));transition:transform .25s ease-out,box-shadow .3s,border-color .3s;animation:tilein .6s cubic-bezier(.2,.9,.3,1) both;animation-delay:calc(var(--i,0) * 60ms)}
+.tile:hover{transform:perspective(900px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg)) translateY(-6px);box-shadow:0 34px 70px rgba(0,0,0,.5)}
+.tile::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:0;transition:opacity .3s;background:radial-gradient(circle at var(--mx,50%) var(--my,0%),rgba(255,255,255,.18),transparent 45%)}
+.tile:hover::after{opacity:1}
+@keyframes tilein{from{opacity:0;transform:perspective(900px) translateY(40px) rotateX(12deg)}}
+.tile .art::before{content:"";position:absolute;inset:0;background:var(--tg,transparent);opacity:.9}
+.tile[data-game="uno"]{--tg:radial-gradient(120% 100% at 50% 100%,rgba(42,127,208,.55),transparent 65%)}
+.tile[data-game="unoflip"]{--tg:radial-gradient(120% 100% at 50% 100%,rgba(122,59,201,.55),transparent 65%)}
+.tile[data-game="unonm"]{--tg:radial-gradient(120% 100% at 50% 100%,rgba(224,27,36,.5),transparent 65%)}
+.tile[data-game="rummy"]{--tg:radial-gradient(120% 100% at 50% 100%,rgba(138,29,48,.6),transparent 65%)}
+.tile[data-game="leastcount"]{--tg:radial-gradient(120% 100% at 50% 100%,rgba(34,107,69,.55),transparent 65%)}
+.tile[data-game="teenpatti"]{--tg:radial-gradient(120% 100% at 50% 100%,rgba(122,31,58,.6),transparent 65%)}
+.tile[data-game="poker"]{--tg:radial-gradient(120% 100% at 50% 100%,rgba(143,79,39,.5),transparent 65%)}
+.tile[data-game="andarbahar"]{--tg:radial-gradient(120% 100% at 50% 100%,rgba(44,106,214,.55),transparent 65%)}
+.tile[data-game="tambola"]{--tg:radial-gradient(120% 100% at 50% 100%,rgba(224,33,138,.45),transparent 65%)}
+.tile[data-game="mafia"]{--tg:radial-gradient(120% 100% at 50% 100%,rgba(38,42,94,.8),transparent 65%)}
+.tile[data-game="solitaire"]{--tg:radial-gradient(120% 100% at 50% 100%,rgba(46,139,87,.55),transparent 65%)}
+.tile[data-game="dealmaker"]{--tg:radial-gradient(120% 100% at 50% 100%,rgba(228,188,108,.3),transparent 65%)}
+.tile .art .ab-j .pc{box-shadow:0 0 0 3px #e6c35c,0 16px 30px rgba(0,0,0,.5)}
+.ab-art .fi{position:absolute;left:50%;top:58%}
+.fan .ab-art .fi{top:50%}
+@media (prefers-reduced-motion:reduce){ .tile{animation:none;transform:none} }
+.ab-art .ab-j{box-shadow:none}
+.ab-art .ab-j .pc{box-shadow:0 0 0 3px #e6c35c,0 16px 30px rgba(0,0,0,.5)}
+@media (max-width:640px){
+  /* the table's instructions sit under the piles on phones, not squeezed beside them */
+  .rtable{flex-wrap:wrap;transform:none;border-radius:28px!important;padding:16px!important}
+  .rtable .status{flex-basis:100%;max-width:none;text-align:center}
+  [data-game="dealmaker"] .mid{transform:none;flex-wrap:wrap;padding:14px}
+  [data-game="dealmaker"] .mid .status{flex-basis:100%;max-width:none}
+  [data-game="andarbahar"] .ab-cards{min-height:64px}
+  [data-game="andarbahar"] .ab-row .ab-pot{justify-self:end}
+}
