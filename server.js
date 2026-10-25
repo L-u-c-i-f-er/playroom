@@ -2,6 +2,7 @@
 //  - Table documents ("tables/ABCDE"): the host's browser saves the full game state; everyone else follows it.
 //    "tables/ABCDE-qr" holds the host's payment QR for paid tables, so it isn't re-sent with every move.
 //  - Rooms: who is at a table right now, plus each player's presence (their name and latest move).
+//  - Game requests from players, and a password-protected page where the developer reads them.
 // Game rules run in the host's browser, so this server never needs to know any game.
 import http from 'node:http';
 import fs from 'node:fs';
@@ -31,6 +32,74 @@ function save(){
   }, 2000);
 }
 
+/* ---------- game requests ----------
+   Players suggest games from the home screen (POST /api/requests). Each request is saved to REQUESTS_FILE and,
+   when GITHUB_TOKEN and GITHUB_REPO are set, also opened as a GitHub issue labelled "game request", which
+   survives hosts like Render's free tier that wipe files on restart. The developer reads them at
+   /admin/requests: the browser asks for a password, which is ADMIN_KEY. */
+const REQ_FILE = process.env.REQUESTS_FILE || path.join(ROOT, 'data', 'requests.json');
+let requests = [];
+try { requests = JSON.parse(fs.readFileSync(REQ_FILE, 'utf8')); } catch {}
+const reqHits = new Map();   // ip -> times of recent requests, to stop one person flooding the list
+const json = (res, code, data) => res.writeHead(code, {'content-type':'application/json', 'cache-control':'no-store'}).end(JSON.stringify(data));
+const readBody = (req, max) => new Promise((ok, fail) => {
+  let b = '', over = false;   // past the limit: ignore the rest and answer, rather than cut the connection
+  req.on('data', c => { if (over) return; b += c; if (b.length > max){ over = true; fail(new Error('too large')); } }); req.on('end', () => ok(b)); req.on('error', fail);
+});
+const clean = (v, n) => String(v ?? '').replace(/[\u0000-\u0009\u000b-\u001f\u007f]+/g, ' ').trim().slice(0, n);
+async function postRequest(req, res){
+  const ip = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim(), now = Date.now();
+  if (reqHits.size > 5000) reqHits.clear();
+  const hits = (reqHits.get(ip) || []).filter(t => now - t < 36e5);
+  if (hits.length >= 5) return json(res, 429, {error:'That’s plenty of requests for one hour. Thanks! Try again later.'});
+  let b; try { b = JSON.parse(await readBody(req, 4096)); } catch { return json(res, 400, {error:'That request was not understood'}); }
+  const r = {id:crypto.randomBytes(4).toString('hex'), at:new Date().toISOString(), game:clean(b?.game, 60), players:clean(b?.players, 30), name:clean(b?.name, 30), details:clean(b?.details, 600)};
+  if (r.game.length < 2) return json(res, 400, {error:'Tell us the game’s name'});
+  hits.push(now); reqHits.set(ip, hits);
+  requests = [...requests, r].slice(-2000);
+  fs.mkdirSync(path.dirname(REQ_FILE), {recursive:true});
+  fs.writeFile(REQ_FILE, JSON.stringify(requests), err => err && console.error('saving requests failed', err.message));
+  toGitHub(r);
+  json(res, 200, {ok:true});
+}
+function toGitHub(r){
+  const {GITHUB_TOKEN:token, GITHUB_REPO:repo} = process.env;
+  if (!token || !repo) return;
+  const quiet = s => s.replace(/@/g, '@​');   // no accidental @mentions
+  fetch(`https://api.github.com/repos/${repo}/issues`, {method:'POST',
+    headers:{authorization:`Bearer ${token}`, accept:'application/vnd.github+json', 'user-agent':'playroom', 'content-type':'application/json'},
+    body:JSON.stringify({title:`Game request: ${quiet(r.game)}`, labels:['game request'],
+      body:`**Game:** ${quiet(r.game)}\n**Players:** ${quiet(r.players) || '–'}\n**From:** ${quiet(r.name) || 'anonymous'}\n\n${quiet(r.details).split('\n').map(l => '> ' + l).join('\n') || '> (no details)'}`})})
+    .then(x => { if (!x.ok) console.error('GitHub issue for a game request failed:', x.status); })
+    .catch(e => console.error('GitHub issue for a game request failed:', e.message));
+}
+const html = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'})[c]);
+function adminRequests(req, res, asJson){
+  const key = process.env.ADMIN_KEY;
+  if (!key){ res.writeHead(404, {'content-type':'text/plain; charset=utf-8'}).end('Game requests are off. Set the ADMIN_KEY setting on the server to read them here.'); return; }
+  const pass = Buffer.from(String(req.headers.authorization || '').replace(/^Basic\s+/i, ''), 'base64').toString().split(':').slice(1).join(':');
+  const a = Buffer.from(pass), b = Buffer.from(key);
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)){
+    res.writeHead(401, {'www-authenticate':'Basic realm="Playroom game requests", charset="UTF-8"', 'content-type':'text/plain; charset=utf-8'}).end('Password needed (the ADMIN_KEY setting).');
+    return;
+  }
+  if (asJson) return json(res, 200, requests);
+  // Most wanted first: requests for the same game (ignoring case and spacing) are counted together.
+  const groups = new Map();
+  for (const r of requests){ const k = r.game.toLowerCase().replace(/[^a-z0-9]+/g, ''); const g = groups.get(k) || {name:r.game, n:0, last:r.at}; g.n++; g.last = r.at; groups.set(k, g); }
+  const top = [...groups.values()].sort((x, y) => y.n - x.n || (y.last > x.last ? 1 : -1));
+  const when = iso => new Date(iso).toLocaleString('en-IN', {dateStyle:'medium', timeStyle:'short', timeZone:'Asia/Kolkata'});
+  res.writeHead(200, {'content-type':'text/html; charset=utf-8', 'cache-control':'no-store', 'x-robots-tag':'noindex'});
+  res.end(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Game requests · Playroom</title>
+<style>body{margin:0;font:15px/1.45 system-ui,sans-serif;background:#0f1416;color:#eef2f2}main{max-width:900px;margin:0 auto;padding:24px 16px}h1{margin:0 0 4px}
+.muted{color:#9fb0b2}table{width:100%;border-collapse:collapse;margin:12px 0 28px}th,td{text-align:left;padding:8px 10px;border-bottom:1px solid #263235;vertical-align:top}
+th{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:#9fb0b2}td.n{font-weight:700;color:#f4c95d;width:60px}.d{white-space:pre-wrap;color:#cfd8d9}a{color:#7cc6ff}</style>
+<main><h1>Game requests</h1><p class="muted">${requests.length} request${requests.length === 1 ? '' : 's'} · newest first below · <a href="/admin/requests.json">download as JSON</a></p>
+${requests.length ? `<h2>Most wanted</h2><table><tr><th>Asks</th><th>Game</th><th>Last asked</th></tr>${top.map(g => `<tr><td class="n">${g.n}</td><td>${html(g.name)}</td><td class="muted">${when(g.last)}</td></tr>`).join('')}</table>
+<h2>All requests</h2><table><tr><th>When</th><th>Game</th><th>Players</th><th>From</th><th>Details</th></tr>${[...requests].reverse().map(r => `<tr><td class="muted">${when(r.at)}</td><td><b>${html(r.game)}</b></td><td>${html(r.players || '–')}</td><td>${html(r.name || 'anonymous')}</td><td class="d">${html(r.details || '')}</td></tr>`).join('')}</table>`
+  : '<p>No requests yet. They appear here as soon as someone sends one from the home screen.</p>'}</main>`);
+}
+
 /* ---------- static files ---------- */
 const TYPES = {'.html':'text/html; charset=utf-8', '.css':'text/css; charset=utf-8', '.js':'text/javascript; charset=utf-8', '.json':'application/json',
   '.svg':'image/svg+xml', '.png':'image/png', '.ico':'image/x-icon', '.webmanifest':'application/manifest+json'};
@@ -38,6 +107,8 @@ const server = http.createServer((req, res) => {
   let p;
   try { p = decodeURIComponent(new URL(req.url, 'http://x').pathname); } catch { res.writeHead(400).end(); return; }
   if (p === '/healthz'){ res.writeHead(200, {'content-type':'text/plain'}).end('ok'); return; }
+  if (p === '/api/requests'){ if (req.method === 'POST') postRequest(req, res).catch(() => json(res, 500, {error:'Couldn’t save that. Try again'})); else res.writeHead(405).end(); return; }
+  if (p === '/admin/requests' || p === '/admin/requests.json'){ adminRequests(req, res, p.endsWith('.json')); return; }
   if (p.endsWith('/')) p += 'index.html';
   const file = path.join(PUBLIC, path.normalize(p));
   if (!file.startsWith(PUBLIC + path.sep)){ res.writeHead(403).end(); return; }

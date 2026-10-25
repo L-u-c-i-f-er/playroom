@@ -152,6 +152,10 @@ const GAMES = [
    tags:['2–9 players', 'Hold’em', 'Online', 'Pass & play'], art:() => PK.art()},
   {id:'teenpatti', name:'Teen Patti', blurb:'Three cards, blind or seen. Chaal, sideshow, show, and a trail of aces beats everything. Play-money chips.',
    tags:['3–8 players', 'Blind & seen', 'Online', 'Pass & play'], art:() => TP.art()},
+  {id:'bingo', name:'Bingo', blurb:'Fill a 5×5 grid with 1 to 25, take turns calling numbers, and be first to light up B-I-N-G-O.',
+   tags:['2–8 players', 'Numbers 1–25', 'Online', 'Pass & play'], art:() => BINGO.art()},
+  {id:'tictactoe', name:'Tic Tac Toe', blurb:'X and O, three in a row. Play a series against a friend; X switches every round.',
+   tags:['2 players', 'Quick rounds', 'Online', 'One device'], art:() => TTT.art()},
 ];
 // Each game plugs in here: rules engine (newGame/apply/needs) plus its home and table views.
 const ENG = {dealmaker:{name:'Dealmaker', min:2, max:5, newGame, apply, needs, home:() => vHome(), view:s => vGame(s),
@@ -188,10 +192,31 @@ function vHub(){
           <div class="art" aria-hidden="true">${g.art()}</div><span class="go">Play</span>
           <div class="meta"><h3>${esc(g.name)}</h3><p>${esc(g.blurb)}</p><div class="tags">${g.tags.map(t => `<span>${esc(t)}</span>`).join('')}</div></div>
         </button>`).join('')}
-        <div class="tile soon"><div><div class="plus">+</div><b>More games on the way</b><p class="muted">New games will show up on this shelf.</p></div></div>
+        <button class="tile soon" data-do="reqopen"><div><div class="plus">+</div><b>Request a game</b><p class="muted">Missing a favourite? Tell us what to add next.</p></div></button>
       </div>
     </section>
   </div>`;
+}
+
+// Asking for a game: it goes to the server, and the developer reads it at /admin/requests (see server.js).
+const vRequest = () => sheet(`<div class="eyebrow">Request a game</div><h2>What should we add next?</h2>
+  <p class="lede">Name the game and tell us how your group plays it. The developer reads every request.</p>
+  <div class="field"><label for="rq-game">Game</label><input id="rq-game" maxlength="60" placeholder="e.g. Ludo, Carrom, 29, Kachuful" autocomplete="off"></div>
+  <div class="field"><label for="rq-players">Players</label><input id="rq-players" maxlength="30" placeholder="e.g. 2–4"></div>
+  <div class="field"><label for="rq-details">How it’s played, house rules, or a link (optional)</label><textarea id="rq-details" maxlength="600" rows="4"></textarea></div>
+  <div class="field"><label for="rq-name">Your name (optional)</label><input id="rq-name" maxlength="30" value="${esc(form.name)}"></div>
+  <div class="acts"><button class="btn" data-do="closemodal">Cancel</button><button class="btn gold" data-do="reqsend">Send request</button></div>`);
+async function sendRequest(btn){
+  const v = id => document.getElementById(id)?.value.trim() || '';
+  const body = {game:v('rq-game'), players:v('rq-players'), details:v('rq-details'), name:v('rq-name')};
+  if (body.game.length < 2) return toast('Tell us the game’s name');
+  btn.disabled = true;
+  try {
+    const r = await fetch('/api/requests', {method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify(body)});
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || 'Couldn’t send that. Try again');
+    ui.modal = null; render(); toast(`Thanks! “${body.game}” is on the list`);
+  } catch (e) { btn.disabled = false; toast(e.message === 'Failed to fetch' ? 'Couldn’t reach the server. Try again' : e.message); }
 }
 
 /* ---------- views ---------- */
@@ -440,6 +465,83 @@ function playersSheet(s){
     <div class="acts"><button class="btn" data-do="closemodal">Done</button></div>`);
 }
 let myVote = null;
+
+
+/* ---------- table chat ----------
+   Everyone at an online table can chat, in the lobby and during play. Each player's last few messages ride
+   in their presence, so chat works even while the host's phone is away and nothing is stored on the server;
+   someone who arrives later sees messages from then on. The panel lives outside #app so re-renders never
+   steal the text box. */
+const QUICK = ['👍', '😂', '🔥', '😮', '😬', 'Nice one!', 'Hurry up!', 'Good game!', 'Not again 😩'];
+let chat = {code:'', log:[], seen:{}, mine:[], open:false, unread:0};
+const chatEl = Object.assign(document.createElement('div'), {className:'chat', hidden:true});
+chatEl.innerHTML = `<button class="chat-btn" data-c="toggle" aria-label="Table chat">💬<b class="chat-n" hidden></b></button>
+  <div class="chat-pop" aria-live="polite"></div>
+  <section class="chat-panel" role="dialog" aria-label="Table chat" hidden>
+    <header><b>Table chat</b><button class="tool" data-c="toggle">Close</button></header>
+    <ol class="chat-log"></ol>
+    <div class="chat-quick">${QUICK.map(q => `<button data-c="quick">${q}</button>`).join('')}</div>
+    <form class="chat-form"><input class="chat-in" maxlength="120" placeholder="Say something…" aria-label="Message" autocomplete="off"><button class="btn small gold">Send</button></form>
+  </section>`;
+document.body.append(chatEl);
+const chatOn = () => !!net.room && screen === 'game' && mode !== 'local' && !!G;
+function chatPull(){
+  if (!chatOn()) return;
+  if (chat.code !== G.code) chat = {code:G.code, log:[], seen:{}, mine:[], open:chat.open, unread:0};
+  let fresh = null;
+  for (const peer of net.room.peers()){
+    const pr = peer.presence || {};
+    if (typeof pr.pid !== 'string' || !Array.isArray(pr.chat)) continue;
+    for (const m of pr.chat.slice(-4)){
+      if (!m || typeof m.t !== 'string' || typeof m.n !== 'number') continue;
+      const k = pr.pid + ':' + m.n; if (chat.seen[k]) continue;
+      chat.seen[k] = 1;
+      const e = {pid:pr.pid, name:String(pr.name || 'Player').slice(0, 18), t:m.t.slice(0, 120), n:m.n};
+      chat.log.push(e);
+      if (pr.pid !== me){ fresh = e; if (!chat.open) chat.unread++; }
+    }
+  }
+  chat.log.sort((a, b) => a.n - b.n); chat.log = chat.log.slice(-80);
+  if (fresh){ sfx('turn'); if (!chat.open) chatPop(fresh); }
+  drawChat(true);
+}
+function chatSay(t){
+  t = String(t || '').replace(/\s+/g, ' ').trim().slice(0, 120);
+  if (!t || !net.room) return;
+  const m = {n:Date.now(), t};
+  chat.mine = [...chat.mine, m].slice(-4);
+  chat.seen[me + ':' + m.n] = 1;
+  chat.log.push({pid:me, name:form.name.trim().slice(0, 18) || 'You', t, n:m.n});
+  net.room.presence({chat:chat.mine}).catch(() => toast('Couldn’t send that. Check your connection'));
+  drawChat(true);
+}
+let popT = 0;
+function chatPop(e){
+  const p = chatEl.querySelector('.chat-pop');
+  p.innerHTML = `<b>${esc(e.name)}</b> ${esc(e.t)}`; p.classList.add('on');
+  clearTimeout(popT); popT = setTimeout(() => p.classList.remove('on'), 3200);
+}
+function drawChat(list){
+  const on = chatOn();
+  chatEl.hidden = !on; if (!on) return;
+  const panel = chatEl.querySelector('.chat-panel'), n = chatEl.querySelector('.chat-n');
+  panel.hidden = !chat.open;
+  n.hidden = !chat.unread; n.textContent = chat.unread > 9 ? '9+' : chat.unread;
+  if (!list) return;
+  const ol = chatEl.querySelector('.chat-log');
+  ol.innerHTML = chat.log.length ? chat.log.map(e => `<li class="${e.pid === me ? 'me' : ''}"><b style="--pc:${G?.players ? seatColor(G, e.pid) : '#fff'}">${e.pid === me ? 'You' : esc(e.name)}</b><span>${esc(e.t)}</span></li>`).join('')
+    : '<li class="muted">No messages yet. Say hi 👋</li>';
+  ol.scrollTop = ol.scrollHeight;
+}
+chatEl.addEventListener('click', e => {
+  const b = e.target.closest('[data-c]'); if (!b) return;
+  if (b.dataset.c === 'toggle'){ chat.open = !chat.open; chat.unread = 0; chatEl.querySelector('.chat-pop').classList.remove('on'); drawChat(true); if (chat.open) chatEl.querySelector('.chat-in').focus(); }
+  if (b.dataset.c === 'quick') chatSay(b.textContent);
+});
+chatEl.querySelector('.chat-form').addEventListener('submit', e => {
+  e.preventDefault(); const i = chatEl.querySelector('.chat-in'); chatSay(i.value); i.value = ''; i.focus();
+});
+chatEl.addEventListener('keydown', e => { if (e.key === 'Escape' && chat.open){ chat.open = false; drawChat(); } });
 
 function vGame(s){
   if (s.phase === 'lobby') return vLobby(s);
@@ -782,6 +884,7 @@ function renderNow(){
   document.body.dataset.game = screen === 'hub' ? '' : GID;   // lets each game theme the page behind it
   app.innerHTML = screen === 'hub' ? vHub() : screen === 'home' || !s ? ENG[GID].home() : s.phase === 'lobby' ? vLobby(s) : ENG[GID].view(s);
   if (ui.modal === 'rules' && screen !== 'game') app.insertAdjacentHTML('beforeend', (ENG[GID].rules || vRules)());
+  if (ui.modal === 'request' && screen === 'hub') app.insertAdjacentHTML('beforeend', vRequest());
   if (screen === 'game' && s && lateCan(s)){
     app.insertAdjacentHTML('beforeend', ui.modal === 'late' && mode !== 'guest' ? lateSheet(s) : lateBar(s));
   }
@@ -791,9 +894,10 @@ function renderNow(){
     else if (G.vote) app.insertAdjacentHTML('beforeend', voteCard(G));
     else if (G.gone?.[me]) app.insertAdjacentHTML('beforeend', '<div class="late-bar"><span>You were voted out of this game.</span><button class="btn small" data-do="leave">Leave</button></div>');
   }
+  drawChat();
   if (focusId){ const f = document.getElementById(focusId); if (f){ f.focus(); try { f.setSelectionRange(selStart, selStart); } catch {} } }
   if (s && screen === 'game') events(s);
-  const flown = GID === 'dealmaker' && s && screen === 'game' && s.players && s.phase !== 'lobby' ? flights(s, before) : new Set();
+  const flown = !(s && screen === 'game' && s.players && s.phase !== 'lobby') ? new Set() : GID === 'dealmaker' ? flights(s, before) : ENG[GID].motion?.(s, before) || new Set();
   if (!(s && screen === 'game' && s.phase !== 'lobby')) prevS = null;
   else if (!app.querySelector('.curtain')) prevS = clone(s);   // behind the pass screen, keep the old state so the next player sees their draws
   if (reduce || !before.size || !s) return;
@@ -931,7 +1035,7 @@ function take(st){
 async function joinRoom(code){
   net.room = await net.lobby.join('t-' + code.toLowerCase());
   await net.room.presence({pid:me, name:form.name.trim().slice(0, 18) || 'Player', join:code, host:mode === 'host' || null, v:G.v});
-  const tick = () => mode === 'host' ? hostTick() : guestTick();
+  const tick = () => { if (mode === 'host') hostTick(); else guestTick(); chatPull(); };
   net.room.onPeers(tick, () => toast('Lost the live connection to the table'));
   setTimeout(tick, 1500);
 }
@@ -1058,6 +1162,8 @@ const H = {
   paysaid:() => { ui.said = true; net.room?.presence({said:true}).catch(() => toast('Connection hiccup. Try that again')); render(); },
   open:d => { if (ENG[d.game]){ GID = d.game; screen = 'home'; ui = freshUI(); dealAnim = false; render(); scrollTo(0, 0); } },
   hub:() => { screen = 'hub'; render(); scrollTo(0, 0); },
+  reqopen:() => { ui.modal = 'request'; render(); document.getElementById('rq-game')?.focus(); },
+  reqsend:(d, el) => sendRequest(el),
   kick:d => { if (mode !== 'host' || G.phase !== 'lobby') return; G.players = G.players.filter(p => p.id !== d.id); G.kicked = [...(G.kicked || []), d.id]; G.v++; persist(); render(); },
   copy:() => navigator.clipboard?.writeText(G.code).then(() => toast('Code copied'), () => toast(`Code: ${G.code}`)) ?? toast(`Code: ${G.code}`),
   ladd:() => { if (form.locals.length < 5) form.locals.push(''); render(); },
@@ -1073,7 +1179,7 @@ const H = {
 };
 app.addEventListener('click', e => {
   const el = e.target.closest('[data-do]'); if (!el || el.disabled) return;
-  e.stopPropagation(); H[el.dataset.do]?.(el.dataset);
+  e.stopPropagation(); H[el.dataset.do]?.(el.dataset, el);
 });
 app.addEventListener('keydown', e => {
   if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[data-do]:not(button)')){ e.preventDefault(); e.target.click(); }

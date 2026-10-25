@@ -326,7 +326,7 @@ function makeUno(kind){
       <rect width="120" height="178" rx="14" fill="${dk ? '#0d0d10' : '#fbf8f0'}"/><rect x="6" y="6" width="108" height="166" rx="9" fill="${col}"/>
       <g transform="translate(60 89)">${oval}${mid}</g>
       <g transform="translate(19 25)">${cdraw(corner)}</g><g transform="translate(101 153) rotate(180)">${cdraw(corner)}</g>
-      <rect x="6" y="6" width="108" height="166" rx="9" fill="url(#ug)"/></svg>`;
+      <rect x="6" y="6" width="108" height="166" rx="9" fill="url(#ug)"/><path d="M6 60L114 6V40L6 104Z" fill="#fff" opacity=".07"/></svg>`;
     faceCache.set(k, svg); return svg;
   }
   const BACK = `<svg viewBox="0 0 120 178" aria-hidden="true"><rect width="120" height="178" rx="14" fill="#fbf8f0"/><rect x="6" y="6" width="108" height="166" rx="9" fill="#16161a"/>
@@ -554,6 +554,113 @@ function makeUno(kind){
     return `<div class="curtain"><div><div class="eyebrow">Pass the device</div><h2>${avatar(s, p)} ${esc(p.name)}</h2><p class="muted">${s.pend ? `${esc(P(s, s.pend.by).name)} played ${NAME[s.pend.v]} on you` : s.roul ? 'Color Roulette: pick a color' : s.stack ? `You face +${s.stack.n}` : 'Your turn'}</p><br><button class="btn gold" data-do="reveal">I’m ${esc(p.name)}. Show my cards</button></div></div>`;
   }
 
+
+  /* ----- motion: every card travels -----
+     After each render we compare with the last state drawn: a new round is dealt card by card from the deck,
+     a played card flies from whoever held it to the pile (turning face up), drawn cards fly from the deck to
+     the player, swapped hands fly between seats. Skips, reverses, color changes, penalties and UNO calls each
+     get a short effect. Works the same on every device, since each one compares its own before and after. */
+  let seen = null;
+  const centre = el => { const r = el.getBoundingClientRect(); return {x:r.left + r.width / 2, y:r.top + r.height / 2, w:r.width}; };
+  function flyCard({from, to, front, up = true, down = false, delay = 0, dur = 520, rot = 0, onDone}){
+    const el = document.createElement('div'); el.className = 'ufly'; el.style.width = to.w + 'px';
+    el.innerHTML = `<div class="ufly-in"><div class="ufly-f">${front || `<div class="uc">${BACK}</div>`}</div><div class="ufly-b"><div class="uc">${BACK}</div></div></div>`;
+    document.body.append(el);
+    const h = to.w * 178 / 120, at = (p, k, r) => `translate(${p.x - to.w / 2}px,${p.y - h / 2}px) rotate(${r}deg) scale(${k})`;
+    const mid = {x:(from.x + to.x) / 2, y:(from.y + to.y) / 2 - Math.min(90, Math.hypot(to.x - from.x, to.y - from.y) * .18)};
+    const a = el.animate([{transform:at(from, from.w / to.w, rot - 14)}, {transform:at(mid, 1.12, rot - 4), offset:.55}, {transform:at(to, 1, rot)}],
+      {duration:dur, delay, easing:'cubic-bezier(.22,.8,.25,1)', fill:'both'});
+    if (front && (down || !up)) el.firstElementChild.animate(down ? [{transform:'rotateY(180deg)'}, {transform:'rotateY(180deg)', offset:.25}, {transform:'rotateY(0)'}] : [{transform:'none'}],
+      {duration:dur, delay, easing:'ease-in-out', fill:'both'});
+    if (!front) el.firstElementChild.style.transform = 'none';
+    setTimeout(() => sfx('flick'), delay);
+    let ended = false;
+    const end = () => { if (ended) return; ended = true; el.remove(); onDone?.(); };
+    a.onfinish = end; setTimeout(end, delay + dur + 500);
+  }
+  const land = el => { if (!el) return; el.style.visibility = ''; el.classList.remove('uland'); void el.offsetWidth; el.classList.add('uland'); };
+  // Effects float in a layer over the table and remove themselves.
+  function fx(html, at, cls, ms = 1100, delay = 0){
+    setTimeout(() => {
+      const el = document.createElement('div'); el.className = 'ufx ' + cls; el.innerHTML = html;
+      el.style.left = at.x + 'px'; el.style.top = at.y + 'px';
+      document.body.append(el); setTimeout(() => el.remove(), ms);
+    }, delay);
+  }
+  const burst = (at, color, delay) => fx(Array.from({length:16}, (_, i) => { const a = i / 16 * Math.PI * 2, d = 90 + (i % 3) * 30;
+    return `<i style="--dx:${Math.cos(a) * d}px;--dy:${Math.sin(a) * d}px;background:${color}"></i>`; }).join('') + `<b style="border-color:${color}"></b>`, at, 'uburst', 1000, delay);
+  function motion(s, before){
+    const done = new Set(), prev = seen;
+    if (app.querySelector('.curtain')) return done;   // behind the pass screen: show what happened once the next player looks
+    seen = {gid:s.gid, ln:s.ln, side:s.side, pile:[...s.pile], hands:Object.fromEntries(s.players.map(p => [p.id, [...p.hand]]))};
+    if (reduce || s.phase === 'lobby') return done;
+    const deckEl = app.querySelector('#deck .uc'); if (!deckEl) return done;
+    const deck = centre(deckEl);
+    const seatEl = pid => app.querySelector(`.uno-seat[data-pid="${CSS.escape(pid)}"]`);
+    const fanEl = pid => seatEl(pid)?.querySelector('.uno-fan');
+    const slot = id => app.querySelector(`.uno-hand [data-cid="${id}"]`);
+    const pileEl = id => app.querySelector(`.upile [data-cid="${id}"]`);
+    const spot = pid => { const f = fanEl(pid) || seatEl(pid); if (f) return {...centre(f), w:Math.max(26, centre(f).w / 4)};
+      const me2 = app.querySelector('.uno-hand'); return me2 ? {...centre(me2), w:60} : deck; };
+    const hide = el => { if (el){ el.style.visibility = 'hidden'; } return el; };
+    // A new round: deal it out, one card at a time, round the table
+    const fresh0 = s.pile.length === 1 && s.log.length <= 3;   // a round that has only just been dealt
+    if (fresh0 && (dealAnim || !prev || prev.gid !== s.gid)){
+      dealAnim = false;
+      const n = Math.max(...s.players.map(p => p.hand.length)), total = s.players.reduce((a, p) => a + p.hand.length, 0), stag = Math.min(70, 2400 / Math.max(1, total));
+      const fans = Object.fromEntries(s.players.map(p => [p.id, [...(fanEl(p.id)?.children || [])]]));
+      Object.values(fans).flat().forEach(hide);
+      let k = 0;
+      for (let r = 0; r < n; r++) for (const p of s.players){
+        const id = p.hand[r]; if (id == null) continue;
+        if (p.id === me){ const el = hide(slot(id)); if (el){ done.add(String(id)); flyCard({from:deck, to:centre(el), front:uc(s, id), down:true, delay:k++ * stag, rot:0, onDone:() => land(el)}); continue; } }
+        const f = fans[p.id], el = f?.[Math.min(r, f.length - 1)];
+        flyCard({from:deck, to:el ? centre(el) : spot(p.id), delay:k++ * stag, dur:460, onDone:() => { if (el) el.style.visibility = ''; }});
+      }
+      const top = s.pile.at(-1), pe = hide(pileEl(top));
+      if (pe){ done.add(String(top)); flyCard({from:deck, to:centre(pe), front:uc(s, top), down:true, delay:k * stag + 200, onDone:() => land(pe)}); }
+      return done;
+    }
+    if (!prev || s.ln < prev.ln || prev.side !== s.side) return done;
+    let k = 0;
+    // Plays: from the hand that held the card to the pile
+    for (const id of s.pile.filter(id => !prev.pile.includes(id))){
+      const el = pileEl(id); if (!el) continue;
+      const owner = Object.keys(prev.hands).find(pid => prev.hands[pid].includes(id)), was = before.get(String(id));
+      const from = was ? {x:was.left + was.width / 2, y:was.top + was.height / 2, w:was.width} : owner ? spot(owner) : deck;
+      done.add(String(id)); hide(el);
+      flyCard({from, to:centre(el), front:uc(s, id), down:!was, delay:k++ * 110, rot:parseFloat(el.parentElement.style.transform.replace(/[^\d.-]/g, '')) || 0, onDone:() => { land(el); sfx('card'); }});
+    }
+    const after = k * 110 + (k ? 250 : 0);
+    // Draws (from the deck) and swaps (from another player)
+    for (const p of s.players){
+      const add = p.hand.filter(id => !(prev.hands[p.id] || []).includes(id));
+      add.slice(0, 12).forEach((id, j) => {
+        const from = Object.keys(prev.hands).find(pid => pid !== p.id && prev.hands[pid].includes(id));
+        const src = from ? spot(from) : deck, d = after + j * 120;
+        if (p.id === me){ const el = slot(id); if (!el) return; done.add(String(id)); hide(el); flyCard({from:src, to:centre(el), front:uc(s, id), down:true, delay:d, onDone:() => land(el)}); }
+        else flyCard({from:src, to:spot(p.id), delay:d, dur:480});
+      });
+    }
+    // Effects for what just happened
+    const fresh = s.log.filter(e => e.n > prev.ln), at = pid => pid === me ? (app.querySelector('.uno-hand') ? centre(app.querySelector('.uno-hand')) : deck) : spot(pid);
+    const pileC = app.querySelector('.upile') ? centre(app.querySelector('.upile')) : deck;
+    for (const e of fresh){
+      for (const pid of e.to || []){
+        if (/skipped/.test(e.you)) fx(`<svg viewBox="-40 -40 80 80">${ink(SHAPE.skip, '#fff')}</svg>`, at(pid), 'ustamp', 1200, after);
+        const m = e.you.match(/\+(\d+)|draw (\d+)/); if (m) fx(`<span>+${m[1] || m[2]}</span>`, at(pid), 'upen', 1300, after);
+      }
+      const u = e.text.match(/^(.+): UNO!$/), up = u && s.players.find(p => p.name === u[1]);
+      if (up) fx('<span>UNO!</span>', at(up.id), 'ucall', 1400);
+    }
+    const topF = face(s, s.pile.at(-1));
+    if (s.pile.at(-1) !== prev.pile.at(-1)){
+      if (topF.v === 'rev') fx(`<svg viewBox="-40 -40 80 80">${ink(SHAPE.rev, '#fff')}</svg>`, pileC, 'urev', 1000, 250);
+      if (topF.c == null && s.color != null) burst(pileC, UCOL[s.color].hex, 350);
+    }
+    return done;
+  }
+
   const late = {unit:'points', why:'the lowest score at the table', score:s => Math.min(...s.players.map(p => s.totals[p.id] || 0))};
   // Out of time: take any penalty, draw, and play a drawn card only where the rules insist (No Mercy).
   function timeout(s, pid){
@@ -566,7 +673,7 @@ function makeUno(kind){
     const can = nm ? p.hand.find(id => canPlay(s, id)) : null;   // No Mercy: no drawing while you can play
     return can != null ? play(can) : {t:'draw'};
   }
-  return {name:NICE, nm, late, timeout, min:2, max:nm ? 6 : 10, cfg, CARDS, STACK, newGame, apply, needs, home, view, rules, art, face, canPlay, legal, pts, uc, BACK,
+  return {name:NICE, nm, late, timeout, min:2, max:nm ? 6 : 10, cfg, CARDS, STACK, newGame, apply, needs, home, view, rules, art, face, canPlay, legal, pts, uc, BACK, motion,
     lobby:(s, host) => host
       ? `<div class="row"><label class="muted" for="unocap">Play to</label>${capInput('unocap', 'target', s.cfg?.target ?? cfg.target, TARGETS.map(t => t[0]), 1, 10000)}<span class="muted">points · 1 for a single round</span></div>`
       : `<p class="muted">Playing ${(s.cfg?.target ?? cfg.target) <= 1 ? 'a single round' : `to ${(s.cfg?.target ?? cfg.target).toLocaleString()} points`}</p>`};

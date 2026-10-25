@@ -24,7 +24,7 @@ Friends on the same Wi-Fi can join at `http://<your-computer's-IP>:3000`.
 npm test
 ```
 
-runs the rules checks: hundreds of simulated Dealmaker, Rummy, Least Count, UNO, UNO Flip, Mafia, Poker, Teen Patti and Solitaire games, thousands of Andar Bahar deals, plus Tambola ticket and claim checks.
+runs the rules checks: hundreds of simulated Dealmaker, Rummy, Least Count, UNO, UNO Flip, Mafia, Poker, Teen Patti, Solitaire, Tic Tac Toe and Bingo games, thousands of Andar Bahar deals, Tambola ticket and claim checks, and the game request server.
 
 ## Deploy it
 
@@ -62,6 +62,23 @@ yourdomain.com {
 | `PORT` | `3000` | Port the server listens on |
 | `DATA_FILE` | `data/tables.json` | Where online tables are saved |
 | `KEEP_DAYS` | `7` | Tables untouched this long are deleted |
+| `ADMIN_KEY` | (none) | Password for reading game requests at `/admin/requests`. Without it that page stays off |
+| `REQUESTS_FILE` | `data/requests.json` | Where game requests are saved |
+| `GITHUB_TOKEN` | (none) | Optional: also open each game request as a GitHub issue |
+| `GITHUB_REPO` | (none) | The repository for those issues, e.g. `your-name/playroom` |
+
+## Game requests
+
+Players tap **Request a game** at the end of the games shelf on the home screen and send a game name, player count and how they play it.
+
+**Read them:** set `ADMIN_KEY` to a long password of your choice (on Render: your service → **Environment** → add `ADMIN_KEY`). Then open `https://your-site/admin/requests`. The browser asks for a username and password: type anything as the username and your `ADMIN_KEY` as the password. The page lists the most wanted games first (requests for the same game are counted together), then every request with its details. `/admin/requests.json` downloads them all.
+
+**Keep them on Render's free tier:** free instances wipe saved files on every restart and deploy, so requests saved only on the server don't last. To keep each one, also send them to GitHub Issues:
+
+1. On GitHub: **Settings → Developer settings → Fine-grained tokens → Generate new token**. Give it access to only this repository, with **Issues: Read and write**.
+2. On Render, add `GITHUB_TOKEN` (the token) and `GITHUB_REPO` (e.g. `your-name/playroom`).
+
+Every request then also appears as an issue labelled **game request** in that repository, and GitHub emails you about each one.
 
 ## How it's built
 
@@ -98,3 +115,9 @@ Hidden information (other players' hands) is sent to every browser at the table 
 **Turn timer:** in the lobby of any turn-based online game the host can set seconds per turn (15 to 120). The pill at the top counts down for whoever we are waiting on; when it runs out, the host's device makes a safe move for that player (draw, check or fold, pack, end the turn, throw the highest card…).
 
 **Voting a player out:** during an online game the host taps **Players** and calls a vote on someone. Everyone else votes Remove or Keep; a majority removes them (a tie keeps them, and the vote lapses after a minute). The game plays their turns safely until the round ends, then deals without them.
+
+**Table chat:** every online table has a chat button on the right edge, in the lobby and during play, with quick reactions. Messages travel with each player's live connection, so chat keeps working while the host's phone is away; nothing is stored.
+
+**Tic Tac Toe:** two players, online or side by side on one device. Rounds run as a series; X switches every round and draws are counted.
+
+**Bingo:** the 5×5 number game for 2–8 players. Fill your grid with 1–25 (tap squares in order, or shuffle), take turns calling numbers, and be first to five complete lines (B-I-N-G-O). Players who reach five on the same call share the round.
