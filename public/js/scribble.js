@@ -107,7 +107,7 @@ const SC = (() => {
   function endTurn(s){
     const n = Object.keys(s.guessed).length, m = guessers(s).length, a = artistOf(s);
     if (n && m && !s.gone?.[a.id]){
-      const pts = 5 * Math.round((300 * Math.min(1, n / m) + (n >= m ? 50 : 0)) * MULT[s.level] / 5);
+      const pts = 5 * Math.round((150 * Math.min(1, n / m) + (n >= m ? 25 : 0)) * MULT[s.level] / 5);
       s.gain[a.id] = pts; s.totals[a.id] = (s.totals[a.id] || 0) + pts;
     }
     s.stage = 'reveal'; s.until = clock() + SHOW;
@@ -208,6 +208,7 @@ const SC = (() => {
   const inkDoc = pid => net.db?.doc(`tables/${G.code}-ink-${pid}`);
   // tool: brush, fill or eraser; c: a palette index or a colour from the wheel (h, s, l)
   const pen = {c:1, w:1, tool:'pen', h:200, s:80, l:50, hex:'#1a8fff', wheel:false};
+  let kickArm = null, kickT = 0;   // the host's first tap on ✕ asks “Kick?”, the second calls the vote
   let draft = '', board = null, ring = null, ctx = null, painted = {key:'', v:-1, n:0, k:0}, wheelDrag = false;
   const model = () => mine && G && mine.key === turnKey(G) ? mine : seen;
   const used = m => m.ink.reduce((a, k) => a + (k.f ? 50 : k.p.length / 2), 0);
@@ -308,7 +309,7 @@ const SC = (() => {
         if (used(mine) >= CAP) break;
         p.push(x, y);
         const last = batch.at(-1);
-        if (last?.a === 'pt' && last.q > sealQ && last.n === mine.ink.length - 1 && last.p.length < 380) last.p.push(x, y);
+        if (last?.a === 'pt' && last.q > sealQ && last.n === mine.ink.length - 1 && last.p.length < 120) last.p.push(x, y);
         else batch.push({q:++nextq, a:'pt', n:mine.ink.length - 1, c:stroke.c, w:stroke.w, p:[x, y]});
       }
       paint();
@@ -324,18 +325,19 @@ const SC = (() => {
     if (!batch.length || !G || GID !== 'scribble' || !mine) return;
     recent.push(...batch); batch = []; inkDue = true;
     let keep = 0, size = 0;
-    for (let i = recent.length - 1; i >= 0; i--){ size += JSON.stringify(recent[i]).length; if (size > 1500 && keep) break; keep++; }
+    for (let i = recent.length - 1; i >= 0; i--){ size += JSON.stringify(recent[i]).length; if (size > 1200 && keep) break; keep++; }
     recent = recent.slice(-keep);
     net.room?.presence({ink:{k:mine.key, e:mine.e, ops:recent}}).catch(() => {});
   }
   function saveInk(){
     if (!mine || !G?.code) return;
     inkDue = false; inkAt = Date.now(); sealQ = nextq;   // later points start a new step, so the saved copy never changes under it
-    inkDoc(me)?.set({k:mine.key, e:mine.e, q:nextq, ink:mine.ink}).catch(() => { inkDue = true; });
+    inkDoc(me)?.set({k:mine.key, e:mine.e, q:nextq, ink:mine.ink}).catch(e => { inkDue = true; noteErr(`saving the drawing: ${e?.code || e}`); });
   }
   setInterval(() => { flush(); if (inkDue && Date.now() - inkAt > 1500) saveInk(); }, 100);
   // Everyone else: take the artist's newest strokes; on a gap, fetch the saved copy and carry on from it.
   const artistInk = () => { const a = G && artistOf(G); return a && net.room?.peers().find(p => p.presence?.pid === a.id)?.presence?.ink; };
+  let liveAt = 0;
   function onPeers(){
     const s = G; if (!s || GID !== 'scribble' || s.phase !== 'play' || !net.room) return;
     const a = artistOf(s); if (!a || a.id === me) return;
@@ -343,9 +345,20 @@ const SC = (() => {
     if (!ink || ink.k !== turnKey(s) || !Array.isArray(ink.ops)) return;
     if (seen.key !== ink.k) sync(s);
     if (seen.e !== ink.e){ if (seen.e) seen = {key:ink.k, e:ink.e, ink:[], inkv:seen.inkv + 1, inkq:0}; else seen.e = ink.e; }
-    if (inkApply(seen, ink.ops) === 'gap') heal();
+    seen.gap = inkApply(seen, ink.ops) === 'gap';
+    liveAt = Date.now();
+    if (seen.gap) heal();
     paint();
   }
+  // Safety net: drawing in progress but no live strokes for 5 seconds (a bad connection, an update too big to send):
+  // fetch the saved copy every few seconds instead.
+  setInterval(() => {
+    const s = G; if (!s || GID !== 'scribble' || s.phase !== 'play' || s.stage !== 'draw' || screen !== 'game') return;
+    if (artistOf(s)?.id !== me && Date.now() - Math.max(liveAt, s.start - (typeof skew === 'number' ? skew : 0)) > 5000) heal();
+  }, 2500);
+  // For bug reports: where this screen's copy of the drawing stands.
+  const debug = () => ({turn:G && turnKey(G), stage:G?.stage, seen:{key:seen.key, e:seen.e, q:seen.inkq, items:seen.ink.length, gap:!!seen.gap},
+    mine:mine && {key:mine.key, e:mine.e, q:nextq, items:mine.ink.length}, live:artistInk() && {k:artistInk().k, e:artistInk().e, ops:artistInk().ops?.length}, liveAgo:liveAt && Date.now() - liveAt});
   // Fetch the artist's saved copy: one request at a time, at most once a second, retrying a few times if it's a moment behind.
   let healing = false, healT = 0, healTimer = 0, tries = {key:'', n:0};
   function heal(){
@@ -361,10 +374,11 @@ const SC = (() => {
       if (d && d.k === key && Array.isArray(d.ink) && (!seen.e || d.e === seen.e) && (!seen.e || d.q > seen.inkq)){
         seen = {key, e:d.e, ink:d.ink, inkv:seen.inkv + 1, inkq:d.q};
         const ink = artistInk();
-        if (!(ink?.k === key && ink.e === d.e && inkApply(seen, ink.ops) === 'gap')){ tries.n = 0; paint(); return; }
+        seen.gap = ink?.k === key && ink.e === d.e && inkApply(seen, ink.ops) === 'gap';
         paint();
+        if (!seen.gap){ tries.n = 0; return; }
       }
-      if (++tries.n < 6) setTimeout(heal, 1500);   // the saved copy is a moment behind the strokes we've seen: try again
+      if (seen.gap && ++tries.n < 6) setTimeout(heal, 1500);   // the saved copy is a moment behind the strokes we've seen: try again
     }).catch(() => {}).finally(() => { healing = false; });
   }
   // After each render: put the board back in place, size it to the page, and catch it up.
@@ -398,7 +412,7 @@ const SC = (() => {
   const rules = () => sheet(`<div class="eyebrow">How to play</div><h2>Scribble rules</h2><ul class="rules">
       <li><b>Turns</b><span>Each turn one player is the artist. They pick one of three words and draw it. No letters or numbers in the drawing!</span></li>
       <li><b>Guessing</b><span>Everyone else types guesses. Wrong guesses show up in the feed; type something one letter off and you’ll hear it’s close.</span></li>
-      <li><b>Scoring</b><span>A right guess earns up to 500: half for the time left, half for how many got it before you, so the first to guess scores the most. The artist scores for the share of players who guess (up to 300), plus 50 when everyone gets it, and nothing if nobody does.</span></li>
+      <li><b>Scoring</b><span>A right guess earns up to 500: half for the time left, half for how many got it before you, so the first to guess scores the most. The artist scores for the share of players who guess (up to 150), plus 25 when everyone gets it, and nothing if nobody does.</span></li>
       <li><b>Hard words</b><span>The artist picks an Easy, Medium or Hard word. Medium words are worth 15% more for everyone, Hard words 30% more.</span></li>
       <li><b>Tools</b><span>Brush, fill bucket and eraser, four brush sizes, sixteen colours and a colour wheel for any other colour, plus undo and clear.</span></li>
       <li><b>Hints</b><span>As the clock runs down, letters of the word are revealed.</span></li>
@@ -449,7 +463,9 @@ const SC = (() => {
     const ranked = [...s.players].sort((x, y) => (s.totals[y.id] || 0) - (s.totals[x.id] || 0));
     const players = ranked.map((p, i) => `<div class="sc-p ${p === a && !over ? 'draws' : ''} ${s.guessed?.[p.id] != null ? 'got' : ''} ${s.gone?.[p.id] ? 'gone' : ''}" data-pid="${esc(p.id)}">
         <span class="sc-rank">#${i + 1}</span>${avatar(s, p)}<div><b>${esc(p.name)}${p.id === me ? ' (you)' : ''}</b><small>${s.totals[p.id] || 0} pts</small></div>
-        ${p === a && !over ? `<span class="sc-tag pen">${PENCIL}</span>` : s.guessed?.[p.id] != null ? '<span class="sc-tag ok">✓</span>' : ''}</div>`).join('');
+        ${p === a && !over ? `<span class="sc-tag pen">${PENCIL}</span>` : s.guessed?.[p.id] != null ? '<span class="sc-tag ok">✓</span>' : ''}
+        ${mode === 'host' && p.id !== me && !over && !s.gone?.[p.id] && !s.vote ? `<button class="sc-kick ${kickArm === p.id ? 'armed' : ''}" data-do="sckick" data-id="${esc(p.id)}" aria-label="Vote to kick ${esc(p.name)}">${kickArm === p.id ? 'Kick?' : '✕'}</button>` : ''}
+        ${s.gone?.[p.id] ? '<span class="sc-tag out">Out</span>' : ''}</div>`).join('');
     // What sits on top of the paper: the word choice, the wait, the reveal, or the final podium
     let over$ = '';
     if (over){
@@ -476,7 +492,7 @@ const SC = (() => {
       e.kind === 'g' ? `<li><b style="color:${seatColor(s, e.pid)}">${esc(P(s, e.pid)?.name || '')}</b> ${esc(e.g)}</li>`
       : e.kind === 'right' ? `<li class="ok"><b>${esc(P(s, e.pid)?.name || '')}</b> guessed it! <span>+${e.pts}</span></li>`
       : `<li class="sys">${esc(e.text)}</li>`).join('');
-    const box = !meP ? '<p class="sc-note">You’re watching this game.</p>' : over ? '' : mineTurn ? '<p class="sc-note">You’re the artist. Talk in the table chat 💬</p>'
+    const box = !meP ? '<p class="sc-note">You’re watching this game.</p>' : over ? '' : s.gone?.[me] ? '<p class="sc-note">You were voted out of this game.</p>' : mineTurn ? '<p class="sc-note">You’re the artist. Talk in the table chat 💬</p>'
       : got ? `<p class="sc-note ok">You got it! +${s.guessed[me]}</p>` : s.stage !== 'draw' ? '<p class="sc-note">Guess when the drawing starts</p>'
       : `<div class="sc-guess"><label class="sc-inwrap"><input id="sc-in" maxlength="40" placeholder="Type your guess…" autocomplete="off" autocapitalize="off" value="${esc(draft)}" aria-label="Your guess"><span class="sc-count ${count(draft) === letters ? 'match' : ''}" data-n="${letters}" aria-live="polite">${count(draft)}/${letters}</span></label><button class="btn gold" data-do="scguess">Guess</button></div>`;
     return `<div class="game sc-room"><div class="main">
@@ -541,10 +557,14 @@ const SC = (() => {
     scundo:() => edit(() => { if (mine.ink.length){ mine.ink.pop(); batch.push({q:++nextq, a:'undo'}); } }),
     scclear:() => edit(() => { mine.ink = []; batch.push({q:++nextq, a:'clear'}); }),
     scnew:() => { G = {...G, totals:{}, round:0}; rematch(); },
+    sckick:d => {
+      if (kickArm !== d.id){ kickArm = d.id; clearTimeout(kickT); kickT = setTimeout(() => { kickArm = null; render(); }, 3000); return render(); }
+      kickArm = null; H.votecall({id:d.id});
+    },
   });
 
   return {name:'Scribble', min:2, max:12, cfg, late, newGame, apply, needs, tick, home, view, rules, art, motion, onPeers, onEvents,
-    busy:() => drawing || wheelDrag, inkApply, near, norm, WORDS, EASY, MEDIUM, HARD, LEVEL, MULT, CAP, PICK, SHOW, FILLS,
+    busy:() => drawing || wheelDrag, debug, inkApply, near, norm, WORDS, EASY, MEDIUM, HARD, LEVEL, MULT, CAP, PICK, SHOW, FILLS,
     lobby:(s, host) => host
       ? `<div class="row"><label class="muted" for="scr">Rounds</label>${capInput('scr', 'rounds', s.cfg?.rounds ?? cfg.rounds, [2, 3, 4, 5], 1, 10)}<label class="muted" for="scs">Seconds to draw</label>${capInput('scs', 'secs', s.cfg?.secs ?? cfg.secs, [60, 80, 100, 120], 30, 240)}</div>`
       : `<p class="muted">${s.cfg?.rounds ?? cfg.rounds} rounds · ${s.cfg?.secs ?? cfg.secs} seconds to draw</p>`};

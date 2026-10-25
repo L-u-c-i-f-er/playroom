@@ -5,7 +5,7 @@
      lobby.join(name)       .presence(patch) .peers() .onPeers(fn) .leave()
    ===================================================================== */
 const PlayNet = (() => {
-  let ws = null, peerId = null, seq = 0, opened = null, ever = false;
+  let ws = null, peerId = null, seq = 0, opened = null, ever = false, build = null;
   const waits = new Map(), docSubs = new Map(), rooms = new Map();
   const randomKey = () => Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, '0')).join('');
   // Private key for tables this browser hosts: only the creator's browser may save over a table.
@@ -17,7 +17,10 @@ const PlayNet = (() => {
       let ok = false;
       sock.onmessage = e => {
         let m; try { m = JSON.parse(e.data); } catch { return; }
-        if (m.t === 'hello'){ peerId = m.peer; ws = sock; ok = ever = true; resolve(); restore(); return; }
+        if (m.t === 'hello'){
+          if (m.build && build && m.build !== build) dispatchEvent(new Event('playroom:update'));   // reconnected to a newer server
+          build = m.build || build; peerId = m.peer; ws = sock; ok = ever = true; resolve(); restore(); return;
+        }
         onMessage(m);
       };
       sock.onclose = () => {
@@ -104,5 +107,5 @@ const PlayNet = (() => {
     },
   };
 
-  return {connect:() => (opened || open()).then(() => [db, lobby])};
+  return {connect:() => (opened || open()).then(() => [db, lobby]), build:() => build};
 })();

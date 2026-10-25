@@ -54,7 +54,8 @@ const pt = (q, n, p, c = 1, w = 9) => ({q, a:'pt', n, c, w, p});
   const second = s.guessed.p2;
   assert.strictEqual(second, 5 * Math.round((250 * 20 / 80 + 250 * (1 - 1 / 2)) * m / 5), 'second, later: half the order points and a quarter of the time points');
   assert.strictEqual(s.stage, 'reveal', 'everyone guessed: the turn ends');
-  assert.strictEqual(s.totals.p0, 5 * Math.round(350 * m / 5), 'everyone got it: the artist gets the full 300 and the 50 bonus');
+  assert.strictEqual(s.totals.p0, 5 * Math.round(175 * m / 5), 'everyone got it: the artist gets the full 150 and the 25 bonus');
+  assert(s.totals.p0 < fast, 'the artist scores less than a quick guesser');
   assert(/The word was/.test(s.log.at(-1).text));
 }
 // --- The clock: auto-pick, hints, time up, next artist
@@ -102,7 +103,7 @@ assert(SC.WORDS.every(w => /^[a-z]+( [a-z]+)*$/.test(w)), 'words are plain lower
 {
   const s = SC.newGame(seats(5), {cfg:{rounds:1, secs:80}}); ok(s, 'p0', {t:'pick', i:2});
   ok(s, 'p1', {t:'guess', text:s.word}); later(81000); SC.tick(s);
-  assert.strictEqual(s.gain.p0, 5 * Math.round(300 / 4 * SC.MULT[2] / 5), 'one of four guessed: a quarter of 300, hard word bonus');
+  assert.strictEqual(s.gain.p0, 5 * Math.round(150 / 4 * SC.MULT[2] / 5), 'one of four guessed: a quarter of 150, hard word bonus');
   const t = SC.newGame(seats(3), {cfg:{rounds:1, secs:80}}); ok(t, 'p0', {t:'pick', i:0}); later(81000); SC.tick(t);
   assert.strictEqual(t.totals.p0, 0, 'nobody guessed: the artist scores nothing');
 }

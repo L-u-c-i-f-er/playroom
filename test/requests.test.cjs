@@ -2,7 +2,7 @@
 const {spawn} = require('child_process'), os = require('os'), fs = require('fs'), path = require('path'), assert = require('assert');
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'playroom-req-')), port = 30000 + Math.floor(Math.random() * 20000), KEY = 'test-key-123';
 const srv = spawn(process.execPath, [path.join(__dirname, '..', 'server.js')], {env:{...process.env, PORT:String(port), ADMIN_KEY:KEY,
-  DATA_FILE:path.join(dir, 'tables.json'), REQUESTS_FILE:path.join(dir, 'requests.json'), GITHUB_TOKEN:'', GITHUB_REPO:''}, stdio:['ignore', 'pipe', 'inherit']});
+  DATA_FILE:path.join(dir, 'tables.json'), REQUESTS_FILE:path.join(dir, 'requests.json'), BUGS_FILE:path.join(dir, 'bugs.json'), GITHUB_TOKEN:'', GITHUB_REPO:''}, stdio:['ignore', 'pipe', 'inherit']});
 const url = p => `http://localhost:${port}${p}`;
 const post = (body, ip = '1.1.1.1') => fetch(url('/api/requests'), {method:'POST', headers:{'content-type':'application/json', 'x-forwarded-for':ip}, body:JSON.stringify(body)});
 const auth = pass => ({authorization:'Basic ' + Buffer.from('dev:' + pass).toString('base64')});
@@ -29,5 +29,22 @@ const auth = pass => ({authorization:'Basic ' + Buffer.from('dev:' + pass).toStr
   const list = await (await fetch(url('/admin/requests.json'), {headers:auth(KEY)})).json();
   assert.strictEqual(list.length, 6); assert.strictEqual(list[0].players, '2–4'); assert.strictEqual(list[0].details, 'Classic rules\nsafe squares <b>on</b>');
   assert.strictEqual(JSON.parse(fs.readFileSync(path.join(dir, 'requests.json'), 'utf8')).length, 6, 'saved to the file');
-  console.log('ok: game requests — sending, checks, hourly limit, developer page and JSON verified');
+  // bug reports: what happened, plus the device and game snapshot; listed first on the same page
+  const bug = (body, ip = '3.3.3.3') => fetch(url('/api/bugs'), {method:'POST', headers:{'content-type':'application/json', 'x-forwarded-for':ip}, body:JSON.stringify(body)});
+  assert.strictEqual((await bug({what:'hm'})).status, 400, 'a few words at least');
+  r = await bug({what:'Drawing not showing <script>', name:'Ravi', game:'Scribble', diag:{ua:'test', errors:['x'], game_state:{seen:{q:4}}}});
+  assert.strictEqual(r.status, 200);
+  r = await bug({what:'huge', diag:{blob:'x'.repeat(20000)}}); assert.strictEqual(r.status, 400, 'oversized reports are refused');
+  for (let i = 0; i < 10; i++) await bug({what:'another one'}, '4.4.4.4');
+  assert.strictEqual((await bug({what:'one too many'}, '4.4.4.4')).status, 429, 'ten an hour from one place');
+  const bugs = await (await fetch(url('/admin/bugs.json'), {headers:auth(KEY)})).json();
+  assert.strictEqual(bugs.length, 11); assert.strictEqual(bugs[0].game, 'Scribble'); assert.deepStrictEqual(JSON.parse(bugs[0].diag).game_state, {seen:{q:4}});
+  assert.strictEqual((await fetch(url('/admin/bugs.json'))).status, 401);
+  const page2 = await (await fetch(url('/admin/requests'), {headers:auth(KEY)})).text();
+  assert(page2.indexOf('Bug reports') < page2.indexOf('Game requests') && page2.includes('Drawing not showing &lt;script&gt;') && page2.includes('Technical details'));
+  assert.strictEqual(JSON.parse(fs.readFileSync(path.join(dir, 'bugs.json'), 'utf8')).length, 11, 'saved to the file');
+  // the site's fingerprint comes with every connection, so browsers can tell when a deploy changed it
+  const hello = await new Promise((ok, fail) => { const w = new WebSocket(`ws://localhost:${port}/ws`); w.onmessage = e => { ok(JSON.parse(e.data)); w.close(); }; w.onerror = fail; });
+  assert(/^[0-9a-f]{10}$/.test(hello.build), `build ${hello.build}`);
+  console.log('ok: game requests and bug reports — sending, checks, hourly limits, developer page, JSON and build fingerprint verified');
 })().catch(e => { console.error(e); process.exitCode = 1; }).finally(() => { srv.kill(); fs.rmSync(dir, {recursive:true, force:true}); });

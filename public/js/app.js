@@ -25,10 +25,25 @@ const form = {name:store.get('dm-name', ''), code:'', locals:[store.get('dm-name
 const freshUI = () => ({sel:null, mode:null, pend:null, tcard:null, target:null, dbl:0, pay:[], payKey:null, disc:[], moveCard:null, modal:null, log:false, revealed:null, hostOnline:true});
 let ui = freshUI();
 const net = {db:null, lobby:null, room:null, doc:null, unsub:null, ready:false};
+// The last few things that went wrong on this device, sent along with a bug report.
+const errs = [];
+const noteErr = msg => { errs.push(`${new Date().toISOString().slice(11, 19)} ${String(msg).slice(0, 300)}`); if (errs.length > 15) errs.shift(); };
+addEventListener('error', e => noteErr(`${e.message} @ ${(e.filename || '').split('/').pop()}:${e.lineno}`));
+addEventListener('unhandledrejection', e => noteErr(`promise: ${e.reason?.message || e.reason?.code || e.reason}`));
+// The server was updated (a new deploy): offer a reload, and come straight back to the same table.
+addEventListener('playroom:update', () => {
+  if (document.querySelector('.upd-bar')) return;
+  const b = Object.assign(document.createElement('div'), {className:'upd-bar'});
+  b.innerHTML = '<span>Playroom was just updated.</span><button class="btn small gold">Reload</button>';
+  b.querySelector('button').onclick = () => { try { if (G?.code && mode !== 'local') sessionStorage.setItem('pr-rejoin', G.code); } catch {} location.reload(); };
+  document.body.append(b);
+});
 
 (async () => {
   try { [net.db, net.lobby] = await PlayNet.connect(); net.ready = true; } catch { net.ready = false; }
   if (screen !== 'game' && booted) render();
+  let back = null; try { back = sessionStorage.getItem('pr-rejoin'); sessionStorage.removeItem('pr-rejoin'); } catch {}
+  if (back && net.ready && form.name.trim()) joinTable(back);   // reloaded for an update: back to the table
 })();
 let booted = false;   // set once every game module has loaded
 
@@ -195,11 +210,33 @@ function vHub(){
           <div class="meta"><h3>${esc(g.name)}</h3><p>${esc(g.blurb)}</p><div class="tags">${g.tags.map(t => `<span>${esc(t)}</span>`).join('')}</div></div>
         </button>`).join('')}
         <button class="tile soon" data-do="reqopen"><div><div class="plus">+</div><b>Request a game</b><p class="muted">Missing a favourite? Tell us what to add next.</p></div></button>
+        <button class="tile soon bugtile" data-do="bugopen"><div><div class="plus">🐞</div><b>Report a bug</b><p class="muted">Something not working? Tell us and we’ll fix it.</p></div></button>
       </div>
     </section>
   </div>`;
 }
 
+// Reporting a bug: what happened, plus (if allowed) a snapshot of this device and game, to /admin/requests.
+const diag = () => ({build:PlayNet.build?.(), ua:navigator.userAgent, size:`${innerWidth}x${innerHeight}@${devicePixelRatio}`, game:GID, screen, mode,
+  code:G?.code, phase:G?.phase, stage:G?.stage, v:G?.v, players:G?.players?.length, online:!!net.room?.connected?.(), hostAway:hostAway(), skew, errors:errs.slice(), game_state:ENG[GID]?.debug?.()});
+const vBug = () => sheet(`<div class="eyebrow">Report a bug</div><h2>What went wrong?</h2>
+  <p class="lede">Tell us what happened and what you were doing. The developer reads every report.</p>
+  <div class="field"><label for="bg-what">What happened</label><textarea id="bg-what" maxlength="1000" rows="4" placeholder="e.g. Ravi’s drawing didn’t show on my phone"></textarea></div>
+  <div class="field"><label for="bg-name">Your name (optional)</label><input id="bg-name" maxlength="30" value="${esc(form.name)}"></div>
+  <label class="bg-diag"><input type="checkbox" id="bg-diag" checked> Include technical details (game, device, recent errors)</label>
+  <div class="acts"><button class="btn" data-do="closemodal">Cancel</button><button class="btn gold" data-do="bugsend">Send report</button></div>`);
+async function sendBug(btn){
+  const what = document.getElementById('bg-what')?.value.trim() || '';
+  if (what.length < 5) return toast('Tell us a little about what happened');
+  btn.disabled = true;
+  const body = {what, name:document.getElementById('bg-name')?.value.trim() || '', game:ENG[GID]?.name || GID || '', diag:document.getElementById('bg-diag')?.checked ? diag() : null};
+  try {
+    const r = await fetch('/api/bugs', {method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify(body)});
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || 'Couldn’t send that. Try again');
+    ui.modal = null; render(); toast('Thanks! The bug report was sent');
+  } catch (e) { btn.disabled = false; toast(e.message === 'Failed to fetch' ? 'Couldn’t reach the server. Try again' : e.message); }
+}
 // Asking for a game: it goes to the server, and the developer reads it at /admin/requests (see server.js).
 const vRequest = () => sheet(`<div class="eyebrow">Request a game</div><h2>What should we add next?</h2>
   <p class="lede">Name the game and tell us how your group plays it. The developer reads every request.</p>
@@ -446,7 +483,7 @@ setInterval(() => {
   const mine = mode !== 'local' && screen === 'game' && playing(G) && !!ENG[GID].needs?.(G).includes(me);
   if (mine && !wasMine && document.visibilityState === 'visible') navigator.vibrate?.(70);
   wasMine = mine;
-  hostClock(); showClock();
+  hostClock(); showClock(); catchUp();
   if (mode === 'host' && playing(G) && ENG[GID].tick?.(G)){ G.v++; persist(); render(); }
 }, 500);
 function voteCard(s){
@@ -943,17 +980,19 @@ function renderNow(){
   app.innerHTML = screen === 'hub' ? vHub() : screen === 'home' || !s ? ENG[GID].home() : s.phase === 'lobby' ? vLobby(s) : ENG[GID].view(s);
   if (ui.modal === 'rules' && screen !== 'game') app.insertAdjacentHTML('beforeend', (ENG[GID].rules || vRules)());
   if (ui.modal === 'request' && screen === 'hub') app.insertAdjacentHTML('beforeend', vRequest());
+  if (ui.modal === 'bug') app.insertAdjacentHTML('beforeend', vBug());
+  if (screen === 'game' && ui.modal !== 'bug') app.querySelector('.tool[data-do="leave"]')?.insertAdjacentHTML('beforebegin', '<button class="tool bug" data-do="bugopen" aria-label="Report a bug">🐞<span> Bug</span></button>');
   if (screen === 'game' && s && lateCan(s)){
     app.insertAdjacentHTML('beforeend', ui.modal === 'late' && mode !== 'guest' ? lateSheet(s) : lateBar(s));
   }
   if (screen === 'game' && playing(G) && mode !== 'local'){
-    if (mode === 'host') app.querySelector('.tool[data-do="leave"]')?.insertAdjacentHTML('beforebegin', '<button class="tool" data-do="players">Players</button>');
+    if (mode === 'host') app.querySelector('.tool[data-do="leave"]')?.insertAdjacentHTML('beforebegin', '<button class="tool kick" data-do="players" aria-label="Vote to kick a player">Kick</button>');
     if (ui.modal === 'players' && mode === 'host') app.insertAdjacentHTML('beforeend', playersSheet(G));
     else if (G.vote) app.insertAdjacentHTML('beforeend', voteCard(G));
     else if (G.gone?.[me]) app.insertAdjacentHTML('beforeend', '<div class="late-bar"><span>You were voted out of this game.</span><button class="btn small" data-do="leave">Leave</button></div>');
   }
   drawChat();
-  if (focusId){ const f = document.getElementById(focusId); if (f){ f.focus(); try { f.setSelectionRange(selStart, selStart); } catch {} } }
+  if (focusId){ const f = document.getElementById(focusId); if (f){ f.focus({preventScroll:true}); try { f.setSelectionRange(selStart, selStart); } catch {} } }
   if (s && screen === 'game') events(s);
   const flown = !(s && screen === 'game' && s.players && s.phase !== 'lobby') ? new Set() : GID === 'dealmaker' ? flights(s, before) : ENG[GID].motion?.(s, before) || new Set();
   const was = prevS;
@@ -1086,11 +1125,18 @@ function guestTick(){
   const h = net.room.peers().find(p => p.presence?.host === true);
   if (h?.presence.beat !== hostBeat.n){ hostBeat = {n:h?.presence.beat, at:Date.now()}; }
   ui.hostOnline = !hostAway();
-  if (h && h.presence.v > (G?.v || 0) && !refetching){
-    refetching = true;
-    net.doc.get().then(sn => { if (sn.exists) take(sn.data().state); }).catch(() => {}).finally(() => { refetching = false; });
-  }
+  catchUp();
   render();
+}
+// The host says the table is newer than ours (a missed update): fetch it. Checked on every presence change and every
+// half second, at most once every two seconds, so a screen never stays stuck on an old turn.
+let caughtAt = 0;
+function catchUp(){
+  if (!net.room || mode !== 'guest' || refetching || Date.now() - caughtAt < 2000) return;
+  const h = net.room.peers().find(p => p.presence?.host === true);
+  if (!h || !(h.presence.v > (G?.v || 0))) return;
+  refetching = true; caughtAt = Date.now();
+  net.doc.get().then(sn => { if (sn.exists) take(sn.data().state); }).catch(() => {}).finally(() => { refetching = false; });
 }
 function take(st){
   if (mode !== 'guest' || !st || st.v <= (G?.v || 0)) return;
@@ -1236,6 +1282,8 @@ const H = {
   open:d => { if (ENG[d.game]){ GID = d.game; screen = 'home'; ui = freshUI(); dealAnim = false; render(); scrollTo(0, 0); } },
   hub:() => { screen = 'hub'; render(); scrollTo(0, 0); },
   reqopen:() => { ui.modal = 'request'; render(); document.getElementById('rq-game')?.focus(); },
+  bugopen:() => { ui.modal = 'bug'; render(); },
+  bugsend:(d, el) => sendBug(el),
   reqsend:(d, el) => sendRequest(el),
   kick:d => { if (mode !== 'host' || G.phase !== 'lobby') return; G.players = G.players.filter(p => p.id !== d.id); G.kicked = [...(G.kicked || []), d.id]; G.v++; persist(); render(); },
   copy:() => navigator.clipboard?.writeText(G.code).then(() => toast('Code copied'), () => toast(`Code: ${G.code}`)) ?? toast(`Code: ${G.code}`),

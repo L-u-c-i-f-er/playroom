@@ -67,6 +67,14 @@ yourdomain.com {
 | `GITHUB_TOKEN` | (none) | Optional: also open each game request as a GitHub issue |
 | `GITHUB_REPO` | (none) | The repository for those issues, e.g. `your-name/playroom` |
 
+## Bug reports
+
+Every game has a 🐞 **Bug** button in its top bar, and the home screen has a **Report a bug** tile. Players describe what went wrong and, unless they untick it, a snapshot of their device and game goes along (game, stage, connection, recent errors on that device, and for Scribble where their copy of the drawing stands). Reports appear at the top of `/admin/requests` (same `ADMIN_KEY` password), `/admin/bugs.json` downloads them, and with `GITHUB_TOKEN` and `GITHUB_REPO` set each one also becomes a GitHub issue labelled **bug**. They're saved to `data/bugs.json` (`BUGS_FILE`).
+
+## Updates while people are playing
+
+The server sends a fingerprint of the site's files with every connection. After a deploy, browsers that reconnect see "Playroom was just updated" with a Reload button, which brings them straight back to the table they were at.
+
 ## Game requests
 
 Players tap **Request a game** at the end of the games shelf on the home screen and send a game name, player count and how they play it.
@@ -122,4 +130,4 @@ Hidden information (other players' hands) is sent to every browser at the table 
 
 **Bingo:** the number grid game for 2–8 players. The host picks the grid: 5×5 (1–25, the classic), 6×6, 7×7 or 8×8 (1–64) for bigger groups. Fill your grid (tap squares in order, or shuffle), take turns calling numbers, and be first to five complete lines (B-I-N-G-O) on any size. Players who reach five on the same call share the round. Friends can join between rounds.
 
-**Scribble:** draw and guess for 2–12 players, online (everyone on their own phone or computer). Each turn the artist picks an Easy, Medium or Hard word (500+ drawable words; medium scores 15% more, hard 30%) and draws it live with a brush, fill bucket, eraser, sixteen colours and a colour wheel for any other colour. Everyone else types guesses; the blanks show each word's letter count, and the guess box counts the letters you've typed. A right guess earns up to 500: half for the time left, half for how many got it before you. The artist is paid for the share of players who guessed (up to 300, plus 50 when everyone does, nothing when nobody does). Letters are revealed as the clock runs down, near misses are told privately, and everyone draws once a round. The host sets the rounds and seconds to draw. The drawing streams through the artist's live connection (each update repeats the last few strokes), and the artist's own device saves the whole picture to the server every couple of seconds (`tables/CODE-ink-PLAYER`). Anyone who misses an update, joins late or reloads fetches that copy and carries on, and the artist can reload mid-turn without losing the picture.
+**Scribble:** draw and guess for 2–12 players, online (everyone on their own phone or computer). Each turn the artist picks an Easy, Medium or Hard word (500+ drawable words; medium scores 15% more, hard 30%) and draws it live with a brush, fill bucket, eraser, sixteen colours and a colour wheel for any other colour. Everyone else types guesses; the blanks show each word's letter count, and the guess box counts the letters you've typed. A right guess earns up to 500: half for the time left, half for how many got it before you. The artist is paid for the share of players who guessed (up to 150, plus 25 when everyone does, nothing when nobody does), so a quick guesser always scores more. Letters are revealed as the clock runs down, near misses are told privately, and everyone draws once a round. The host sets the rounds and seconds to draw. The drawing streams through the artist's live connection (each update repeats the last few strokes), and the artist's own device saves the whole picture to the server every couple of seconds (`tables/CODE-ink-PLAYER`). Anyone who misses an update, joins late or reloads fetches that copy and carries on; a screen that gets no live strokes for 5 seconds keeps fetching it; and the artist can reload mid-turn without losing the picture.
