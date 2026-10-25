@@ -152,8 +152,10 @@ const GAMES = [
    tags:['2–9 players', 'Hold’em', 'Online', 'Pass & play'], art:() => PK.art()},
   {id:'teenpatti', name:'Teen Patti', blurb:'Three cards, blind or seen. Chaal, sideshow, show, and a trail of aces beats everything. Play-money chips.',
    tags:['3–8 players', 'Blind & seen', 'Online', 'Pass & play'], art:() => TP.art()},
-  {id:'bingo', name:'Bingo', blurb:'Fill a 5×5 grid with 1 to 25, take turns calling numbers, and be first to light up B-I-N-G-O.',
-   tags:['2–8 players', 'Numbers 1–25', 'Online', 'Pass & play'], art:() => BINGO.art()},
+  {id:'bingo', name:'Bingo', blurb:'Fill your number grid, take turns calling numbers, and be first to light up B-I-N-G-O. The host picks 5×5 up to 8×8.',
+   tags:['2–8 players', 'Grids 5×5 to 8×8', 'Online', 'Pass & play'], art:() => BINGO.art()},
+  {id:'scribble', name:'Scribble', blurb:'One player draws a secret word live on everyone’s screen; the rest race to guess it. Quick guesses score big.',
+   tags:['2–12 players', 'Draw & guess', 'Online'], art:() => SC.art()},
   {id:'tictactoe', name:'Tic Tac Toe', blurb:'X and O, three in a row. Bring the group: winner stays on and everyone else queues for a shot.',
    tags:['2–8 players', 'Winner stays on', 'Online', 'One device'], art:() => TTT.art()},
 ];
@@ -445,6 +447,7 @@ setInterval(() => {
   if (mine && !wasMine && document.visibilityState === 'visible') navigator.vibrate?.(70);
   wasMine = mine;
   hostClock(); showClock();
+  if (mode === 'host' && playing(G) && ENG[GID].tick?.(G)){ G.v++; persist(); render(); }
 }, 500);
 function voteCard(s){
   const v = s.vote, ids = voters(s), y = ids.filter(id => v.yes[id]).length, n = ids.filter(id => v.no[id]).length;
@@ -926,6 +929,7 @@ function flights(s, before){
 let rendering = false;
 function render(){
   if (rendering) return void queueMicrotask(render);
+  if (screen === 'game' && ENG[GID]?.busy?.()) return;   // mid-stroke in Scribble: it renders when the pen lifts
   rendering = true;
   try { renderNow(); } finally { rendering = false; }
 }
@@ -1036,7 +1040,7 @@ async function persist(){
   if (writing){ dirty = true; return; }
   writing = true;
   try {
-    do { dirty = false; await net.doc.set({state:G}); net.room?.presence({v:G.v}).catch(() => {}); } while (dirty);
+    do { dirty = false; G.now = Date.now(); await net.doc.set({state:G}); net.room?.presence({v:G.v}).catch(() => {}); } while (dirty);
   } catch { toast('Couldn’t save the table. Check your connection'); }
   writing = false;
 }
@@ -1092,14 +1096,19 @@ function take(st){
   if (mode !== 'guest' || !st || st.v <= (G?.v || 0)) return;
   if (G?.phase === 'lobby' && st.phase === 'play') dealAnim = true;
   G = clone(st);
-  if (G.now && G.clock) skew = G.now - Date.now();
+  if (G.now) skew = G.now - Date.now();
   if (opt && (G.ack?.[me] || 0) >= opt.n) opt = null;
   render();
 }
 async function joinRoom(code){
   net.room = await net.lobby.join('t-' + code.toLowerCase());
   await net.room.presence({pid:me, name:form.name.trim().slice(0, 18) || 'Player', join:code, host:mode === 'host' || null, v:G.v});
-  const tick = () => { if (mode === 'host') hostTick(); else guestTick(); chatPull(); };
+  let sig = '';
+  const tick = () => {
+    const now = JSON.stringify(net.room.peers().map(p => [p.peer, {...p.presence, ink:0}]));
+    if (now !== sig){ sig = now; if (mode === 'host') hostTick(); else guestTick(); chatPull(); }
+    ENG[GID]?.onPeers?.();
+  };
   net.room.onPeers(tick, () => toast('Lost the live connection to the table'));
   setTimeout(tick, 1500);
 }
@@ -1134,7 +1143,7 @@ async function joinTable(code){
 }
 function leave(){
   net.unsub?.(); net.unsub = null; net.room?.leave().catch(() => {}); net.room = null;
-  mode = null; G = null; opt = null; screen = 'home'; seenLog = -1; me = myPid();
+  mode = null; G = null; opt = null; screen = 'home'; seenLog = -1; me = myPid(); skew = 0;
   ui = freshUI(); render();
 }
 

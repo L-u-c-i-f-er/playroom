@@ -8,7 +8,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "test": "node test/dealmaker.test.cjs && node test/games.test.cjs && node test/cardgames.test.cjs && node test/uno.test.cjs && node test/mafia.test.cjs && node test/solitaire.test.cjs && node test/poker.test.cjs && node test/teenpatti.test.cjs && node test/party.test.cjs && node test/requests.test.cjs"
+    "test": "node test/dealmaker.test.cjs && node test/games.test.cjs && node test/cardgames.test.cjs && node test/uno.test.cjs && node test/mafia.test.cjs && node test/solitaire.test.cjs && node test/poker.test.cjs && node test/teenpatti.test.cjs && node test/party.test.cjs && node test/requests.test.cjs && node test/scribble.test.cjs"
   },
   "engines": {
     "node": ">=18.11"
