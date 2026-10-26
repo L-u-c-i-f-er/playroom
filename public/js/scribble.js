@@ -208,7 +208,7 @@ const SC = (() => {
   const inkDoc = pid => net.db?.doc(`tables/${G.code}-ink-${pid}`);
   // tool: brush, fill or eraser; c: a palette index or a colour from the wheel (h, s, l)
   const pen = {c:1, w:1, tool:'pen', h:200, s:80, l:50, hex:'#1a8fff', wheel:false};
-  let kickArm = null, kickT = 0;   // the host's first tap on ✕ asks “Kick?”, the second calls the vote
+  let kickArm = null, kickT = 0, palOpen = false, menu = false;   // phone: the colour pop-up and the ☰ menu   // the host's first tap on ✕ asks “Kick?”, the second calls the vote
   let draft = '', board = null, ring = null, ctx = null, painted = {key:'', v:-1, n:0, k:0}, wheelDrag = false;
   const model = () => mine && G && mine.key === turnKey(G) ? mine : seen;
   const used = m => m.ink.reduce((a, k) => a + (k.f ? 50 : k.p.length / 2), 0);
@@ -480,10 +480,13 @@ const SC = (() => {
         <div class="sc-gains">${gains.length ? gains.map(p => `<span>${esc(p.name)} <b>+${s.gain[p.id]}</b></span>`).join('') : '<span>Nobody guessed it</span>'}</div></div>`;
     }
     const tool = (t, label, icon) => `<button class="${pen.tool === t ? 'on' : ''}" data-do="sctool" data-t="${t}" aria-pressed="${pen.tool === t}">${icon}<span>${label}</span></button>`;
+    const curHex = pen.tool === 'erase' ? '#ffffff' : hex(pen.c);
     const tools = s.stage === 'draw' && mineTurn && !over ? `<div class="sc-tools">
-        <div class="sc-pal">${PAL.map((c, i) => `<button class="sw ${pen.tool !== 'erase' && pen.c === i ? 'on' : ''}" style="--c:${c}" data-do="sccolor" data-c="${i}" aria-label="Colour ${i + 1}"></button>`).join('')}
+        <button class="sc-cur" data-do="scpal" style="--c:${curHex}" aria-label="Colours" aria-expanded="${palOpen}"></button>
+        <div class="sc-pal ${palOpen ? 'open' : ''}">${PAL.map((c, i) => `<button class="sw ${pen.tool !== 'erase' && pen.c === i ? 'on' : ''}" style="--c:${c}" data-do="sccolor" data-c="${i}" aria-label="Colour ${i + 1}"></button>`).join('')}
           <button class="sw any ${pen.tool !== 'erase' && pen.c === pen.hex ? 'on' : ''}" style="--c:${pen.hex}" data-do="scwheel" aria-label="Any colour" aria-expanded="${pen.wheel}"></button></div>
         <div class="sc-sizes">${SIZES.map((w, i) => `<button class="${pen.w === i ? 'on' : ''}" data-do="scsize" data-w="${i}" aria-label="Brush size ${i + 1}"><i style="--d:${Math.max(4, w * .7)}px"></i></button>`).join('')}</div>
+        <button class="sc-size1" data-do="scsizenext" aria-label="Brush size ${pen.w + 1} of ${SIZES.length}"><i style="--d:${Math.max(5, SIZES[pen.w] * .7)}px;--c:${curHex}"></i></button>
         <div class="sc-acts">${tool('pen', 'Brush', ICON.pen)}${tool('fill', 'Fill', ICON.fill)}${tool('erase', 'Eraser', ICON.erase)}
           <button data-do="scundo">${ICON.undo}<span>Undo</span></button><button data-do="scclear">${ICON.clear}<span>Clear</span></button></div>
         ${pen.wheel ? `<div class="sc-wheelbox"><div class="sc-wheel" style="--l:${pen.l}"><i style="--x:${50 + 50 * pen.s / 100 * Math.sin(pen.h * Math.PI / 180)}%;--y:${50 - 50 * pen.s / 100 * Math.cos(pen.h * Math.PI / 180)}%"></i></div>
@@ -499,7 +502,7 @@ const SC = (() => {
       <header class="top">
         <div class="brand">Scrib<em>ble</em></div>
         <span class="sync">Round ${Math.min(s.lap, s.cfg.rounds)} of ${s.cfg.rounds}</span>
-        <div class="tools">${s.code ? `<span class="codechip">${esc(s.code)}</span>` : ''}<button class="tool" data-do="rules">Rules</button><button class="tool" data-do="mute">${muted ? 'Sound off' : 'Sound on'}</button><button class="tool" data-do="leave">Leave</button></div>
+        <div class="tools">${s.code ? `<span class="codechip">${esc(s.code)}</span>` : ''}<button class="tool sc-menu" data-do="scmenu" aria-label="Menu">☰</button><button class="tool" data-do="rules">Rules</button><button class="tool" data-do="mute">${muted ? 'Sound off' : 'Sound on'}</button><button class="tool" data-do="leave">Leave</button></div>
       </header>
       <div class="sc-grid">
         <aside class="sc-players">${players}</aside>
@@ -510,7 +513,13 @@ const SC = (() => {
         </section>
         <aside class="sc-chat"><ol class="sc-feed">${feed}</ol>${box}</aside>
       </div>
-    </div></div>${ui.modal === 'rules' ? rules() : ''}`;
+    </div></div>${ui.modal === 'rules' ? rules() : ''}${menu ? sheet(`<div class="eyebrow">Scribble</div><h2>Menu</h2><div class="sc-mlist">
+        <button class="btn" data-do="scm" data-a="rules">How to play</button>
+        <button class="btn" data-do="scm" data-a="mute">${muted ? 'Turn sound on' : 'Turn sound off'}</button>
+        ${mode === 'host' && s.phase === 'play' ? '<button class="btn" data-do="scm" data-a="players">Kick a player (vote)</button>' : ''}
+        <button class="btn" data-do="scm" data-a="bugopen">🐞 Report a bug</button>
+        <button class="btn danger" data-do="scm" data-a="leave">Leave the game</button></div>
+        <div class="acts"><button class="btn gold" data-do="scm">Close</button></div>`) : ''}`;
   }
   // A right guess: “+120” rises from that player’s row.
   function onEvents(fresh){
@@ -550,9 +559,13 @@ const SC = (() => {
   Object.assign(H, {
     scpick:d => send({t:'pick', i:+d.i}, true),
     scguess:() => { const t = draft.trim(); if (!t) return; draft = ''; send({t:'guess', text:t}, true); },
-    sccolor:d => { pen.c = +d.c; if (pen.tool === 'erase') pen.tool = 'pen'; render(); },
+    sccolor:d => { pen.c = +d.c; palOpen = false; if (pen.tool === 'erase') pen.tool = 'pen'; render(); },
+    scpal:() => { palOpen = !palOpen; pen.wheel = false; render(); },
+    scsizenext:() => { pen.w = (pen.w + 1) % SIZES.length; render(); },
+    scmenu:() => { menu = true; render(); },
+    scm:d => { menu = false; if (d.a) H[d.a](d); else render(); },
     sctool:d => { pen.tool = d.t; render(); },
-    scwheel:() => { pen.wheel = !pen.wheel; if (pen.wheel) pickColour(); render(); },
+    scwheel:() => { pen.wheel = !pen.wheel; palOpen = false; if (pen.wheel) pickColour(); render(); },
     scsize:d => { pen.w = +d.w; render(); },
     scundo:() => edit(() => { if (mine.ink.length){ mine.ink.pop(); batch.push({q:++nextq, a:'undo'}); } }),
     scclear:() => edit(() => { mine.ink = []; batch.push({q:++nextq, a:'clear'}); }),

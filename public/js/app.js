@@ -475,14 +475,25 @@ function showClock(){
   clockEl.classList.toggle('mine', mine); clockEl.classList.toggle('low', left <= 5);
   clockEl.hidden = false;
 }
-let wasMine = false;
+// Your turn: a short double buzz (phones that allow it) and a little shake with a glow round the screen edge
+// (everywhere, including iPhones, which don't let pages vibrate). Online it fires when the game starts waiting
+// on you; on a shared device, whenever it passes to the next player.
+let wasMine = false, turnSeen = '';
+function yourTurn(){
+  try { navigator.vibrate?.([35, 50, 35]); } catch {}
+  if (reduce) return;
+  const b = document.body;
+  b.classList.remove('your-turn'); void b.offsetWidth; b.classList.add('your-turn');
+  clearTimeout(yourTurn.t); yourTurn.t = setTimeout(() => b.classList.remove('your-turn'), 800);
+}
 setInterval(() => {
   const now = Date.now();
   if (mode === 'host' && net.room && now - lastBeat > 10000){ lastBeat = now; net.room.presence({beat:now}).catch(() => {}); }
   if (mode === 'guest' && opt && now - opt.at > 5000){ opt.at = now; net.room?.presence({act:{n:opt.n, a:opt.a}}).catch(() => {}); }   // no answer yet: send it again (the host ignores repeats)
-  const mine = mode !== 'local' && screen === 'game' && playing(G) && !!ENG[GID].needs?.(G).includes(me);
-  if (mine && !wasMine && document.visibilityState === 'visible') navigator.vibrate?.(70);
-  wasMine = mine;
+  const nd = screen === 'game' && playing(G) ? ENG[GID].needs?.(G) || [] : [];
+  const mine = mode === 'local' ? nd.length > 0 : nd.includes(me), seenNow = mode === 'local' ? `${G?.gid}|${nd.join()}` : '';
+  if (mine && (!wasMine || seenNow !== turnSeen) && document.visibilityState === 'visible') yourTurn();
+  wasMine = mine; turnSeen = seenNow;
   hostClock(); showClock(); catchUp();
   if (mode === 'host' && playing(G) && ENG[GID].tick?.(G)){ G.v++; persist(); render(); }
 }, 500);

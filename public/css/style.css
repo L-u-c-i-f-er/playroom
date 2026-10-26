@@ -1910,3 +1910,88 @@ body:has(#sc-in:focus) .chat{display:none}
 .sc-tag.out{width:auto;padding:0 8px;border-radius:999px;background:#555;color:#fff;font-size:11px}
 .tool.kick{color:#ffb4ae;border-color:rgba(255,120,110,.45)}
 @media (max-width:700px){ .vote-card{left:12px;right:12px;width:auto;bottom:calc(64px + env(safe-area-inset-bottom,0px))} }   /* clear of the chat button */
+
+/* Your turn: the page gives a little shake (moved with left, not transform, so nothing pinned to the screen jumps)
+   and a glow sweeps round the screen edge. See yourTurn() in app.js. */
+body.your-turn #app{position:relative;animation:turnshake .42s ease-in-out}
+@keyframes turnshake{0%,100%{left:0}15%{left:-5px}35%{left:5px}55%{left:-4px}75%{left:3px}90%{left:-1px}}
+body.your-turn::after{content:"";position:fixed;inset:0;z-index:85;pointer-events:none;border-radius:4px;
+  box-shadow:inset 0 0 0 4px var(--brass,#e4bc6c),inset 0 0 46px color-mix(in srgb,var(--brass,#e4bc6c) 55%,transparent);animation:turnglow .8s ease-out forwards}
+@keyframes turnglow{0%{opacity:0}15%{opacity:1}35%{opacity:.5}50%{opacity:1}100%{opacity:0}}
+
+/* =====================================================================
+   SCRIBBLE ON A PHONE: one-line top bar with a ☰ menu, slim player chips,
+   a compact clock and word, a wider drawing, and for the artist a toolbar
+   pinned to the bottom (colour, size, brush, fill, eraser, undo, clear)
+   with the palette and colour wheel popping up above it.
+   ===================================================================== */
+.sc-cur,.sc-size1,.sc-menu{display:none}
+.sc-mlist{display:grid;gap:8px;margin:6px 0 4px}
+.sc-room button,.sc-tools button{touch-action:manipulation}
+.sc-canvas{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+@media (max-width:700px){
+  .sc-room .top{padding:8px 0 6px;gap:8px;flex-wrap:nowrap;min-height:0}
+  .sc-room .brand{font-size:22px}
+  .sc-room .top .sync{font-size:12px;white-space:nowrap;padding:4px 8px}
+  .sc-room .top .tools{flex-wrap:nowrap;gap:6px;margin-left:auto}
+  .sc-room .top .tools > .tool:not(.sc-menu){display:none}
+  .sc-room .top .codechip{font-size:11px;padding:4px 8px}
+  .sc-room .sc-menu{display:inline-grid;place-items:center;min-width:40px;font-size:18px}
+  .sc-players{gap:5px;margin-bottom:2px}
+  .sc-p{padding:3px 8px 3px 3px;gap:6px;border-radius:999px}
+  .sc-p .av{width:28px;height:28px;font-size:13px}
+  .sc-p b{font-size:12px;max-width:90px}
+  .sc-p small{font-size:10px}
+  .sc-p .sc-tag{width:22px;height:22px}
+  .sc-p .sc-kick{height:24px;min-width:24px;padding:0 6px;font-size:11px}
+  .sc-head{gap:10px;margin:6px 0 8px;min-height:0}
+  .sc-time{width:42px;height:42px}
+  .sc-time::before{inset:5px}
+  .sc-time b{font-size:16px}
+  .sc-say{font-size:19px}
+  .sc-word{gap:10px}
+  .sc-w{gap:4px}
+  .sc-word span{width:15px;height:24px;font-size:19px;border-bottom-width:3px}
+  .sc-mid small{font-size:11px}
+  .sc-stage{margin:0 -10px}
+  .sc-paper{border-radius:8px}
+  .sc-slot,.sc-cover,.sc-over{border-radius:8px}
+  .sc-pick{flex-direction:column;align-items:stretch;width:min(100%,300px)}
+  .sc-wc{padding:12px 16px;font-size:22px}
+  .sc-cover{gap:10px;padding:14px}
+  .sc-chat{padding:8px;gap:8px;margin-top:2px}
+  .sc-feed{max-height:150px;font-size:13px}
+  /* the artist's toolbar, always in reach */
+  .sc-tools{position:fixed;left:0;right:0;bottom:0;z-index:40;margin:0;flex-wrap:nowrap;gap:6px;justify-content:space-between;align-items:center;
+    padding:8px 10px calc(8px + env(safe-area-inset-bottom,0px));border-radius:18px 18px 0 0;border:0;border-top:1px solid rgba(255,255,255,.18);
+    background:rgba(14,24,72,.97);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);box-shadow:0 -10px 30px rgba(0,0,0,.35)}
+  .sc-room:has(.sc-tools) .main{padding-bottom:86px}
+  body:has(.sc-tools) .chat{top:auto;bottom:calc(78px + env(safe-area-inset-bottom,0px))}
+  .sc-cur{display:block;flex:none;width:42px;height:42px;padding:0;border-radius:50%;border:3px solid #fff;background:var(--c);box-shadow:0 0 0 2px rgba(0,0,0,.35)}
+  .sc-cur[aria-expanded="true"]{box-shadow:0 0 0 3px #ffd23f}
+  .sc-size1{display:grid;flex:none;place-items:center;width:42px;height:42px;padding:0;border-radius:12px;border:1px solid rgba(255,255,255,.25);background:rgba(0,0,0,.25)}
+  .sc-size1 i{width:var(--d);height:var(--d);max-width:30px;max-height:30px;border-radius:50%;background:var(--c);box-shadow:0 0 0 1.5px #fff}
+  .sc-sizes{display:none}
+  .sc-pal{display:none}
+  .sc-pal.open{display:grid;position:absolute;left:8px;right:8px;bottom:calc(100% + 8px);grid-template-columns:repeat(9,1fr);gap:8px;max-width:none;padding:12px;border-radius:16px;
+    background:rgba(14,24,72,.98);box-shadow:0 10px 30px rgba(0,0,0,.5),0 0 0 1px rgba(255,255,255,.15);animation:scfade .15s ease-out}
+  .sc-pal.open .sw{width:100%;height:auto;aspect-ratio:1}
+  .sc-acts{margin:0;gap:4px;flex:1;justify-content:flex-end}
+  .sc-acts button{min-width:40px;height:42px;padding:0;justify-content:center}
+  .sc-acts button span{display:none}
+  .sc-wheelbox{position:absolute;left:8px;right:8px;bottom:calc(100% + 8px);background:rgba(14,24,72,.98);box-shadow:0 10px 30px rgba(0,0,0,.5)}
+}
+@media (max-width:370px){
+  .sc-tools{gap:4px;padding-left:6px;padding-right:6px}
+  .sc-acts button{min-width:36px}
+  .sc-cur,.sc-size1{width:38px;height:38px}
+}
+@media (max-width:700px){
+  /* word choice: three slim rows that fit inside the paper on small phones */
+  .sc-pick{gap:8px}
+  .sc-wc{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 14px;font-size:20px;border-radius:12px;box-shadow:0 4px 0 #b9c4ee,0 10px 20px rgba(0,0,0,.3)}
+  .sc-wc small{font-size:9px;padding:3px 7px;white-space:nowrap}
+  .sc-cover > small{font-size:12px}
+}
+/* the colour pop-ups get the space the chat button was using */
+body:has(.sc-pal.open) .chat,body:has(.sc-wheelbox) .chat{display:none}
