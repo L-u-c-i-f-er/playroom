@@ -45,7 +45,7 @@ function makeUno(kind){
   // Each Flip card has a fixed Dark Side: a seeded shuffle pairs the sides the same way on every device.
   if (flip){ let seed = 20190706; for (let i = dark.length - 1; i > 0; i--){ seed = seed * 16807 % 2147483647; const j = seed % (i + 1); [dark[i], dark[j]] = [dark[j], dark[i]]; } }
   const CARDS = light.map((f, i) => [f, dark[i]]);
-  const cfg = {target:nm ? 1000 : 500};
+  const cfg = {target:nm ? 1000 : 500, max:0};   // max: the most a round can score for its winner (0: no cap)
   const TARGETS = nm ? [[1, 'one round'], [500, '500 points'], [1000, '1,000 points']] : [[1, 'one round'], [200, '200 points'], [300, '300 points'], [500, '500 points']];
   const face = (s, id) => CARDS[id][s.side];
   const label = f => f.c == null ? NAME[f.v] : `${UCOL[f.c].name} ${NAME[f.v] || f.v}`;
@@ -145,6 +145,8 @@ function makeUno(kind){
     for (const p of s.players) p.score = p.hand.reduce((t, id) => t + pts(face(s, id)), 0);
     const bonus = nm ? s.ko * KO : 0;
     s.gain = s.players.reduce((t, p) => t + (p === w ? 0 : p.score), 0) + bonus;   // the last one standing may still hold cards; those don't count
+    s.capped = s.cfg.max > 0 && s.gain > s.cfg.max;
+    if (s.capped) s.gain = s.cfg.max;   // the host's cap on one round
     s.totals[w.id] = (s.totals[w.id] || 0) + s.gain;
     const how = alive(s).length === 1 && w.hand.length ? 'is the last one standing' : 'went out';
     if (s.cfg.target <= 1 || s.totals[w.id] >= s.cfg.target){
@@ -415,6 +417,7 @@ function makeUno(kind){
           <p>Hand the device around. Each hand stays hidden behind a pass screen.</p>
           <div class="names">${locals}</div>
           <div class="field"><label for="unocaph">Play to</label><div class="row">${capInput('unocaph', 'target', cfg.target, TARGETS.map(t => t[0]), 1, 10000)}<span class="muted">points · 1 for a single round</span></div></div>
+          <div class="field"><label for="unomaxh">Most one round can score</label><div class="row">${capInput('unomaxh', 'max', cfg.max, [0, 100, 150, 200], 0, 1000)}<span class="muted">points · 0 for no cap</span></div></div>
           <div class="row">${form.locals.length < (nm ? 6 : 10) ? '<button class="btn small" data-do="ladd10">Add player</button>' : ''}<button class="btn gold" data-do="unolocal" style="margin-left:auto">Start game</button></div>
           ${saved?.phase === 'play' ? `<button class="btn small" data-do="unoresume">Resume saved game (${saved.players.map(p => esc(p.name)).join(', ')})</button>` : ''}
         </div>
@@ -516,7 +519,7 @@ function makeUno(kind){
       const w = P(s, s.winner), champ = s.champion && P(s, s.champion), next = mode === 'local' || mode === 'host';
       const rows = [...s.players].sort((a, b) => (s.totals[b.id] || 0) - (s.totals[a.id] || 0));
       return sheet(`<div class="eyebrow">Round ${s.round}</div><h2>${champ ? `${esc(champ.name)} wins the match!` : `${esc(w.name)} ${w.hand.length ? 'is the last one standing' : 'went out'}`}</h2>
-        <p class="lede">${esc(w.name)} scores ${s.gain}${nm && s.ko ? `: ${s.gain - s.ko * KO} for cards left in other hands and ${s.ko * KO} for ${s.ko} knockout${s.ko > 1 ? 's' : ''}` : ' for the cards left in everyone’s hands'}${flip ? `, counted on the ${s.side ? 'Dark' : 'Light'} Side` : ''}.</p>
+        <p class="lede">${esc(w.name)} scores ${s.gain}${s.capped ? ' (the cap for one round)' : nm && s.ko ? `: ${s.gain - s.ko * KO} for cards left in other hands and ${s.ko * KO} for ${s.ko} knockout${s.ko > 1 ? 's' : ''}` : ' for the cards left in everyone’s hands'}${flip ? `, counted on the ${s.side ? 'Dark' : 'Light'} Side` : ''}.</p>
         <div class="rres">${rows.map(p => `<div class="rr ${p === w ? 'win' : ''}"><div style="min-width:0"><b>${esc(p.name)}</b> ${p === w ? `<span class="chipst good">${p.hand.length ? 'Last one standing' : 'Out'}</span>` : p.out ? '<span class="chipst">Knocked out</span>' : ''}
           ${p.hand.length ? `<div class="mini-groups"><div>${p.hand.map(id => uc(s, id, {cls:'xs'})).join('')}</div></div>` : ''}</div>
           <span class="num">${p === w ? '+' + s.gain : p.score + ' in hand'}</span><span class="num muted">${s.totals[p.id] || 0} total</span></div>`).join('')}</div>
@@ -675,8 +678,9 @@ function makeUno(kind){
   }
   return {name:NICE, nm, late, timeout, min:2, max:nm ? 6 : 10, cfg, CARDS, STACK, newGame, apply, needs, home, view, rules, art, face, canPlay, legal, pts, uc, BACK, motion,
     lobby:(s, host) => host
-      ? `<div class="row"><label class="muted" for="unocap">Play to</label>${capInput('unocap', 'target', s.cfg?.target ?? cfg.target, TARGETS.map(t => t[0]), 1, 10000)}<span class="muted">points · 1 for a single round</span></div>`
-      : `<p class="muted">Playing ${(s.cfg?.target ?? cfg.target) <= 1 ? 'a single round' : `to ${(s.cfg?.target ?? cfg.target).toLocaleString()} points`}</p>`};
+      ? `<div class="row"><label class="muted" for="unocap">Play to</label>${capInput('unocap', 'target', s.cfg?.target ?? cfg.target, TARGETS.map(t => t[0]), 1, 10000)}<span class="muted">points · 1 for a single round</span></div>
+        <div class="row"><label class="muted" for="unomax">Most one round can score</label>${capInput('unomax', 'max', s.cfg?.max ?? cfg.max, [0, 100, 150, 200], 0, 1000)}<span class="muted">points for the winner · 0 for no cap</span></div>`
+      : `<p class="muted">Playing ${(s.cfg?.target ?? cfg.target) <= 1 ? 'a single round' : `to ${(s.cfg?.target ?? cfg.target).toLocaleString()} points`}${s.cfg?.max ? ` · a round scores at most ${s.cfg.max}` : ''}</p>`};
 }
 ENG.uno = makeUno('classic');
 ENG.unoflip = makeUno('flip');

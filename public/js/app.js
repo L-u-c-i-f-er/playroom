@@ -77,6 +77,8 @@ function sfx(k){
       coin:() => { tone(988, .09); tone(1319, .22, .08); },
       big:() => { tone(330, .14, 0, 'sawtooth', .04); tone(494, .26, .1, 'sawtooth', .04); },
       turn:() => tone(660, .14, 0, 'sine', .05),
+      tick:() => tone(1250, .035, 0, 'square', .018),
+      tick2:() => tone(1650, .06, 0, 'square', .03),
       flick:() => { tone(1800, .03, 0, 'triangle', .025); tone(900, .05, .02, 'triangle', .02); },
       err:() => tone(150, .16, 0, 'square', .03),
       win:() => [523, 659, 784, 1047].forEach((f, i) => tone(f, .3, i * .12)),
@@ -179,7 +181,7 @@ const ENG = {dealmaker:{name:'Dealmaker', min:2, max:5, newGame, apply, needs, h
   timeout}};
 function fanHTML(size, k){
   const pick = f => CARDS.find(f).id;
-  return [[pick(c => c.name === 'Boardwalk'), -16, -150, 18], [pick(c => c.act === 'breaker'), -6, -70, 0], [pick(c => c.value === 10 && c.type === 'money'), 4, 10, -6],
+  return [[pick(c => c.name === 'Mumbai'), -16, -150, 18], [pick(c => c.act === 'breaker'), -6, -70, 0], [pick(c => c.value === 10 && c.type === 'money'), 4, 10, -6],
     [pick(c => c.wild && c.type === 'rent'), 13, 90, 4], [pick(c => c.act === 'jsn'), 22, 168, 24]]
     .map(([id, r, x, y]) => `<div class="fi" style="transform:translate(-50%,-50%) rotate(${r}deg) translate(${x * k}px,${y * k * 1.8}px);--r2:${r * 1.25}deg;--x2:${x * k * 1.36}px;--yy:${(y - 10) * k * 1.8}px">${cardEl(id, size)}</div>`).join('');
 }
@@ -549,6 +551,7 @@ function chatPull(){
       chat.seen[k] = 1;
       const e = {pid:pr.pid, name:String(pr.name || 'Player').slice(0, 18), t:m.t.slice(0, 120), n:m.n};
       chat.log.push(e);
+      if (ENG[GID]?.onChat?.(e)) continue;   // the game showed it its own way (Scribble's floating reactions)
       if (pr.pid !== me){ fresh = e; if (!chat.open) chat.unread++; }
     }
   }
@@ -1125,8 +1128,11 @@ function hostTick(){
     }
   }
   if (changed){ G.v++; persist(); }
-  render();
+  if (changed || rosterChanged()) render();   // someone's heartbeat or chat doesn't redraw the table
 }
+// Who's connected, as shown by the online dots: a redraw is only needed when this changes.
+let roster = '';
+function rosterChanged(){ const now = [...live()].sort().join(); if (now === roster) return false; roster = now; return true; }
 // The host's phone says it's alive every 10 seconds; a phone that's locked or in another app goes quiet.
 let hostBeat = {n:null, at:Date.now()}, lastBeat = 0;
 const hostAway = () => mode === 'guest' && !!net.room && (!net.room.peers().some(p => p.presence?.host === true) || Date.now() - hostBeat.at > 30000);
@@ -1135,9 +1141,10 @@ function guestTick(){
   if (!net.room || mode !== 'guest') return;
   const h = net.room.peers().find(p => p.presence?.host === true);
   if (h?.presence.beat !== hostBeat.n){ hostBeat = {n:h?.presence.beat, at:Date.now()}; }
+  const was = ui.hostOnline;
   ui.hostOnline = !hostAway();
   catchUp();
-  render();
+  if (rosterChanged() || was !== ui.hostOnline) render();
 }
 // The host says the table is newer than ours (a missed update): fetch it. Checked on every presence change and every
 // half second, at most once every two seconds, so a screen never stays stuck on an old turn.
@@ -1181,12 +1188,29 @@ async function hostTable(){
   try { await joinRoom(code); } catch { toast('Couldn’t open the live room. Friends may not see you yet'); }
   screen = 'game'; render();
 }
+// The site settings (see /config.js in server.js): which game this site runs alone, and where the others live.
+const SITE = window.PLAYROOM || {};
+const away = id => SITE.away?.[id];
+// Go to another Playroom site, taking the player's name and (optionally) a table to join.
+function goSite(url, code){
+  const q = new URLSearchParams(); if (form.name.trim()) q.set('name', form.name.trim()); if (code) q.set('join', code);
+  location.href = url + '/' + (q.size ? '?' + q : '');
+}
+// A code not found here: ask the other site(s); if one has it, send the player there. Returns true while it tries.
+function elsewhere(code){
+  const sites = [SITE.main, ...Object.values(SITE.away || {})].filter(Boolean);
+  if (!sites.length) return false;
+  toast('Looking for that table…');
+  Promise.any(sites.map(u => fetch(`${u}/api/has/${code}`, {signal:AbortSignal.timeout(9000)}).then(r => r.ok ? u : Promise.reject())))
+    .then(u => goSite(u, code), () => toast(`No table found with code ${code}`));
+  return true;
+}
 async function joinTable(code){
   const name = form.name.trim(); if (!name) return toast('Enter your name first');
   code = (code || '').trim().toUpperCase(); if (code.length !== 5) return toast('Table codes are 5 letters');
   const doc = net.db.doc('tables/' + code);
   let snap; try { snap = await doc.get(); } catch { return toast('Couldn’t reach the table. Try again'); }
-  if (!snap.exists) return toast(`No table found with code ${code}`);
+  if (!snap.exists) return elsewhere(code) || toast(`No table found with code ${code}`);
   const game = snap.data().state?.game || 'dealmaker';
   if (!ENG[game]) return toast('That table is for a game this page doesn’t have yet');
   GID = game;
@@ -1290,8 +1314,8 @@ const H = {
   },
   votestop:() => { if (mode !== 'host' || !G.vote) return; log(G, `Vote on ${G.vote.name} cancelled`); G.vote = null; G.v++; persist(); render(); },
   paysaid:() => { ui.said = true; net.room?.presence({said:true}).catch(() => toast('Connection hiccup. Try that again')); render(); },
-  open:d => { if (ENG[d.game]){ GID = d.game; screen = 'home'; ui = freshUI(); dealAnim = false; render(); scrollTo(0, 0); } },
-  hub:() => { screen = 'hub'; render(); scrollTo(0, 0); },
+  open:d => { if (away(d.game)) return goSite(away(d.game)); if (ENG[d.game]){ GID = d.game; screen = 'home'; ui = freshUI(); dealAnim = false; render(); scrollTo(0, 0); } },
+  hub:() => { if (SITE.only && SITE.main) return goSite(SITE.main); screen = 'hub'; render(); scrollTo(0, 0); },
   reqopen:() => { ui.modal = 'request'; render(); document.getElementById('rq-game')?.focus(); },
   bugopen:() => { ui.modal = 'bug'; render(); },
   bugsend:(d, el) => sendBug(el),

@@ -108,6 +108,64 @@ assert(SC.WORDS.every(w => /^[a-z]+( [a-z]+)*$/.test(w)), 'words are plain lower
   assert.strictEqual(t.totals.p0, 0, 'nobody guessed: the artist scores nothing');
 }
 
+// --- Rating the drawing: 👍 adds 15, 👎 takes 15, counted when the reveal ends; the artist can't vote
+{
+  const s = SC.newGame(seats(4), {cfg:{rounds:1, secs:30}});
+  assert(SC.apply(s, 'p1', {t:'rate', v:1}).includes('Nothing to rate'), 'not while the word is being picked');
+  ok(s, 'p0', {t:'pick', i:0});
+  assert(SC.apply(s, 'p0', {t:'rate', v:1}).includes('own drawing'));
+  assert(SC.apply(s, 'p1', {t:'rate', v:5}).includes('not understood'));
+  ok(s, 'p1', {t:'rate', v:-1}); ok(s, 'p2', {t:'rate', v:-1}); ok(s, 'p3', {t:'rate', v:1});
+  ok(s, 'p3', {t:'rate', v:0}); ok(s, 'p3', {t:'rate', v:-1});   // changed their mind twice
+  assert.deepStrictEqual(SC.votes(s), {up:0, down:3});
+  s.totals.p0 = 30;
+  later(31000); SC.tick(s); assert.strictEqual(s.stage, 'reveal');
+  ok(s, 'p1', {t:'rate', v:1});   // still open while the word is shown
+  later(SC.SHOW + 10); SC.tick(s);
+  assert.strictEqual(s.totals.p0, 15, 'one like, two dislikes: 30 − 15');
+  assert(/P0’s drawing: 1 👍 2 👎/.test(s.log.map(e => e.text).join('|')));
+  assert.deepStrictEqual(s.rate, {}, 'votes start over for the next drawing');
+}
+{
+  const s = SC.newGame(seats(3), {cfg:{rounds:1, secs:30}}); ok(s, 'p0', {t:'pick', i:0});
+  s.totals.p0 = 100; ok(s, 'p1', {t:'rate', v:1}); ok(s, 'p2', {t:'rate', v:1});
+  later(31000); SC.tick(s); later(SC.SHOW + 10); SC.tick(s);
+  assert.strictEqual(s.totals.p0, 130, 'two likes: +30');
+  const t = SC.newGame(seats(3), {cfg:{rounds:1, secs:30}}); ok(t, 'p0', {t:'pick', i:0});
+  t.totals.p0 = 10; ok(t, 'p1', {t:'rate', v:-1}); ok(t, 'p2', {t:'rate', v:-1});
+  later(31000); SC.tick(t); later(SC.SHOW + 10); SC.tick(t);
+  assert.strictEqual(t.totals.p0, 0, 'two dislikes from 10: down to 0, not below');
+}
+// --- Fresh words: nothing offered comes back until its pile has been seen, across games too
+{
+  let s = SC.newGame(seats(8), {cfg:{rounds:3, secs:30}}), seen = [], games = 0;
+  while (games < 30){
+    while (s.phase === 'play'){ if (s.stage === 'pick') seen.push(...s.choices); later(31000); SC.tick(s); }
+    games++; s = SC.newGame(seats(8), {cfg:s.cfg, ...SC.carry(s)});
+  }
+  if (s.stage === 'pick') seen.push(...s.choices);
+  const easy = seen.filter(w => SC.LEVEL[w] === 0);
+  assert(easy.length > SC.EASY.length, `enough turns to wrap the easy pile (${easy.length})`);
+  const first = easy.slice(0, SC.EASY.length);
+  assert.strictEqual(new Set(first).size, first.length, 'no easy word repeats until all easy words were offered');
+  for (const [lvl, pile] of [[1, SC.MEDIUM], [2, SC.HARD]]){
+    const got = seen.filter(w => SC.LEVEL[w] === lvl).slice(0, pile.length);
+    assert.strictEqual(new Set(got).size, got.length, `level ${lvl}: no repeats within the first ${got.length}`);
+  }
+}
+// --- The host's own words: cleaned, offered in the middle slot, or all three with "only my words"
+{
+  assert.deepStrictEqual(SC.cleanWords("Ravi's Bike, goa  trip\nBIRYANI, x, biryani, café, " + 'y'.repeat(40)), ['ravis bike', 'goa trip', 'biryani', 'cafe']);
+  const mine = ['office canteen', 'goa trip', 'ravis bike', 'chai break'];
+  const s = SC.newGame(seats(3), {cfg:{rounds:1, secs:30, custom:mine}});
+  assert(mine.includes(s.choices[1]) && SC.LEVEL[s.choices[0]] === 0 && SC.LEVEL[s.choices[2]] === 2, 'easy, one of yours, hard');
+  ok(s, 'p0', {t:'pick', i:1}); ok(s, 'p1', {t:'guess', text:s.word.toUpperCase()}); assert(s.guessed.p1 > 0, 'your words can be guessed');
+  const only = SC.newGame(seats(3), {cfg:{rounds:3, secs:30, custom:mine, only:1}}), offered = [];
+  while (only.phase === 'play'){ if (only.stage === 'pick'){ assert.strictEqual(new Set(only.choices).size, 3); offered.push(...only.choices); } later(31000); SC.tick(only); }
+  assert(offered.every(w => mine.includes(w)), 'only your words');
+  const few = SC.newGame(seats(3), {cfg:{rounds:1, secs:30, custom:['one', 'two'], only:1}});
+  assert(SC.LEVEL[few.choices[0]] === 0, 'fewer than 3 of your own: the normal words are used');
+}
 // --- Random games: legal moves, sensible scores, every game ends
 let games = 0, turns = 0, rights = 0;
 for (let g = 0; g < 300; g++){

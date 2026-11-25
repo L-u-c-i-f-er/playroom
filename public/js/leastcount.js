@@ -14,7 +14,7 @@ const LC = (() => {
   const total = (s, hand) => hand.reduce((a, id) => a + val(s, id), 0);
   const lbl = id => id >= 104 ? 'a joker' : RANK[rank(id)] + SUIT[Math.floor((id % 52) / 13)];
   const SHOW_MAX = 10, BAD_SHOW = 40, HAND = 7;
-  const cfg = {limit:100};
+  const cfg = {limit:100, max:0};   // max: the most one deal can add to a player's total (0: no cap)
 
   function newGame(seats, extra = {}){
     const c = {...cfg, ...(extra.cfg || {})}, totals = {...(extra.totals || {})}, round = (extra.round || 0) + 1;
@@ -43,6 +43,7 @@ const LC = (() => {
     const others = alive(s).filter(p => p !== caller), low = Math.min(...others.map(p => total(s, p.hand)));
     const mine = total(s, caller.hand), good = mine < low;
     for (const p of alive(s)) p.score = p === caller ? (good ? 0 : BAD_SHOW) : (!good && total(s, p.hand) === low ? 0 : total(s, p.hand));
+    if (s.cfg.max > 0) for (const p of alive(s)) p.score = Math.min(p.score, s.cfg.max);
     for (const p of alive(s)){ s.totals[p.id] = (s.totals[p.id] || 0) + p.score; if (s.totals[p.id] >= s.cfg.limit) p.out = true; }
     s.caller = caller.id; s.good = good; s.phase = 'over';
     log(s, good ? `${caller.name} showed ${mine} and has the least count` : `${caller.name} showed ${mine}, but someone had ${low}. 40 point penalty`, 'big',
@@ -139,6 +140,7 @@ const LC = (() => {
           <p>Hand the device around. Each hand stays hidden behind a pass screen.</p>
           <div class="names">${locals}</div>
           <div class="field"><label for="lccaph">Players are out at</label><div class="row">${capInput('lccaph', 'limit', cfg.limit, [50, 100, 150, 200], 20, 1000)}<span class="muted">points</span></div></div>
+          <div class="field"><label for="lcmaxh">Most one deal can cost</label><div class="row">${capInput('lcmaxh', 'max', cfg.max, [0, 25, 40, 50], 0, 1000)}<span class="muted">points · 0 for no cap</span></div></div>
           <div class="row">${form.locals.length < 6 ? '<button class="btn small" data-do="ladd6">Add player</button>' : ''}<button class="btn gold" data-do="lclocal" style="margin-left:auto">Start game</button></div>
           ${saved?.phase === 'play' ? `<button class="btn small" data-do="lcresume">Resume saved game (${saved.players.map(p => esc(p.name)).join(', ')})</button>` : ''}
         </div>
@@ -254,7 +256,8 @@ const LC = (() => {
   };
   return {name:'Least Count', min:2, max:6, cfg, late, timeout, newGame, apply, needs, home, view, rules, art, total, val, rank,
     lobby:(s, host) => host
-      ? `<div class="row"><label class="muted" for="lccap">Players are out at</label>${capInput('lccap', 'limit', s.cfg?.limit ?? cfg.limit, [50, 100, 150, 200], 20, 1000)}<span class="muted">points</span></div>`
-      : `<p class="muted">Players are out at ${s.cfg?.limit || cfg.limit} points</p>`};
+      ? `<div class="row"><label class="muted" for="lccap">Players are out at</label>${capInput('lccap', 'limit', s.cfg?.limit ?? cfg.limit, [50, 100, 150, 200], 20, 1000)}<span class="muted">points</span></div>
+        <div class="row"><label class="muted" for="lcmax">Most one round can cost</label>${capInput('lcmax', 'max', s.cfg?.max ?? cfg.max, [0, 25, 40, 50], 0, 1000)}<span class="muted">points · 0 for no cap</span></div>`
+      : `<p class="muted">Players are out at ${s.cfg?.limit || cfg.limit} points${s.cfg?.max ? ` · a deal costs at most ${s.cfg.max}` : ''}</p>`};
 })();
 ENG.leastcount = LC;

@@ -1995,3 +1995,44 @@ body.your-turn::after{content:"";position:fixed;inset:0;z-index:85;pointer-event
 }
 /* the colour pop-ups get the space the chat button was using */
 body:has(.sc-pal.open) .chat,body:has(.sc-wheelbox) .chat{display:none}
+
+/* taps act at once: no wait to see if it's a double-tap zoom */
+button,[data-do],input,select,textarea,a{touch-action:manipulation}
+
+/* Scribble: 👍 / 👎 on the drawing */
+.sc-rate{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;margin:10px 0 0;font:600 13px var(--body);color:var(--muted)}
+.sc-rate button,.sc-rate i{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:4px 12px;border-radius:999px;border:1px solid rgba(255,255,255,.25);background:rgba(0,0,0,.22);color:#fff;font:700 15px var(--body);font-style:normal}
+.sc-rate button{cursor:pointer;transition:transform .12s}
+.sc-rate button:active{transform:scale(.92)}
+.sc-rate button.on{background:#2e9e4f;border-color:#6fdc8c}
+.sc-rate button.on.down{background:#c62828;border-color:#ff8a80}
+.sc-rate small{font:800 12px var(--body);padding:3px 8px;border-radius:999px;background:rgba(111,220,140,.2);color:#9ff0b4}
+.sc-rate small.dn{background:rgba(255,82,82,.2);color:#ffb0b0}
+@media (max-width:700px){ .sc-rate{margin-top:8px;gap:6px} .sc-rate button,.sc-rate i{min-height:34px;padding:3px 10px;font-size:14px} }
+
+/* Scribble: the host's own words */
+.sc-own textarea{width:100%;min-width:0;background:rgba(0,0,0,.28);border:1px solid var(--line);border-radius:12px;padding:10px 12px;color:var(--text);font:500 15px/1.4 var(--body);resize:vertical}
+.sc-own .row{justify-content:space-between;margin-top:6px;gap:10px}
+.sc-onlymine{display:flex;align-items:center;gap:8px;font-size:14px}
+.sc-onlymine input{width:18px;height:18px;accent-color:var(--brass)}
+.sc-wc.own small{background:#8e24aa}
+
+/* Scribble: a shape being dragged is previewed on a see-through layer over the drawing */
+.sc-prev{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+
+/* Scribble: emoji reactions floating over the drawing */
+.sc-reacts{display:inline-flex;gap:4px;margin-left:4px}
+.sc-reacts button{min-width:36px;height:36px;padding:0;border-radius:50%;border:1px solid rgba(255,255,255,.2);background:rgba(0,0,0,.18);font-size:18px;line-height:1;cursor:pointer;transition:transform .12s}
+.sc-reacts button:active{transform:scale(.85)}
+.sc-emo{position:fixed;z-index:69;pointer-events:none;display:grid;justify-items:center;transform:translate(-50%,-50%);animation:scemo 2.1s cubic-bezier(.2,.7,.3,1) forwards}
+.sc-emo span{font-size:40px;line-height:1;filter:drop-shadow(0 4px 8px rgba(0,0,0,.35))}
+.sc-emo small{font:700 11px var(--body);color:#fff;background:rgba(0,0,0,.45);padding:1px 6px;border-radius:999px;margin-top:2px}
+@keyframes scemo{0%{opacity:0;transform:translate(-50%,-30%) scale(.4)}15%{opacity:1;transform:translate(-50%,-60%) scale(1.15)}100%{opacity:0;transform:translate(calc(-50% + var(--dx)),-420%) scale(.9)}}
+/* Scribble: the game's drawings */
+.sc-overacts{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;align-items:center}
+.sc-gal{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;max-height:58vh;overflow-y:auto;margin:6px 0}
+.sc-galitem{display:grid;gap:2px;padding:6px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.06);color:var(--text);text-align:left;cursor:pointer}
+.sc-galitem img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:8px;background:#fff}
+.sc-galitem b{font:700 14px var(--body)}.sc-galitem small{color:var(--muted);font-size:12px}
+.sc-galbig{display:block;width:100%;border-radius:12px;background:#fff;box-shadow:0 10px 30px rgba(0,0,0,.4);margin:6px 0 4px}
+@media (max-width:700px){ .sc-rate > span:first-child{display:none} .sc-reacts{margin-left:0} .sc-reacts button{min-width:32px;height:32px;font-size:16px} .sc-gal{grid-template-columns:repeat(2,1fr)} }

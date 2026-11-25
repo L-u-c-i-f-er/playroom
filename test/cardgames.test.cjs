@@ -85,3 +85,12 @@ for (let m = 0; m < 150; m++){
   assert(s.players.filter(p => (s.totals[p.id] || 0) < 100).length <= 1);
 }
 console.log(`ok: least count — scoring rules verified; ${matches} random matches played to a winner over ${deals} deals`);
+// Least Count: the host's cap on what one deal can cost
+{
+  const s = LC.newGame([{id:'a', name:'A'}, {id:'b', name:'B'}], {cfg:{limit:100, max:25}});
+  s.jr = 99; s.players[0].hand = [0]; s.players[1].hand = [9, 22, 35, 12, 25];   // A shows 1; B holds 50
+  s.turn = 0; s.step = 'throw';
+  assert.strictEqual(LC.apply(s, 'a', {t:'show'}), undefined);
+  assert.strictEqual(P(s, 'b').score, 25, 'capped at 25'); assert.strictEqual(s.totals.b, 25);
+}
+console.log('ok: least count — deal cap verified');

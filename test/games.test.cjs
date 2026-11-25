@@ -98,6 +98,10 @@ for (let i = 0; i < 3000; i++){
       else { RUM.apply(s, p.id, {t:'draw', from:'deck'}); RUM.apply(s, p.id, {t:'discard', card:p.hand[0]}); }
     }
   };
+  // the most one deal can cost: 80 unless the host changes it; 0 means no cap
+  { const big = Array.from({length:13}, (_, i) => i * 8 + 9), c = m => RUM.score({...RUM.newGame(seats, {cfg:{max:m}}), jr:99}, [big]);
+    const raw = c(0); assert(raw > 80, `uncapped hand ${raw}`); assert.strictEqual(c(80), 80); assert.strictEqual(c(40), 40);
+    assert.strictEqual(RUM.newGame(seats).cfg.max, 80, '80 by default'); }
   const s = RUM.newGame(seats, {cfg:{pool:101}, totals:{a:0, b:90, c:40}});
   assert(s.players.every(p => p.status === 'in' && p.hand.length === 13));
   play(s, ['b', 'c']);

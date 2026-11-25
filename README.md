@@ -55,6 +55,17 @@ yourdomain.com {
 }
 ```
 
+## Running Scribble as its own site
+
+Scribble is the heaviest game (live drawing to every player), so it can run on its own server, apart from the other games. Use the same GitHub repository for both:
+
+1. **Scribble site:** on render.com, **New → Web Service**, pick this repository again (build `npm install`, start `npm start`). Under **Environment** add `ONLY_GAME` = `scribble` and `MAIN_URL` = your main site's address (e.g. `https://playroom.onrender.com`).
+2. **Main site:** in your existing service's **Environment**, add `SCRIBBLE_URL` = the new Scribble site's address (e.g. `https://playroom-scribble.onrender.com`).
+
+The main site's Scribble tile then opens the Scribble site, the Scribble site opens straight on Scribble, and a table code typed on the wrong site sends the player to the right one with their name. Remove the settings to run everything on one site again.
+
+**Render's free hours are shared:** every free service in one Render workspace draws from the same 750 hours a month, and running out suspends all of them until the next month. Two services kept awake around the clock would run out in about 15 days. Either let them sleep when idle (no pinger), keep only the main site awake, or put the Scribble site in a second Render workspace (each workspace gets its own 750 hours).
+
 ## Settings
 
 | Variable | Default | What it does |
@@ -62,6 +73,9 @@ yourdomain.com {
 | `PORT` | `3000` | Port the server listens on |
 | `DATA_FILE` | `data/tables.json` | Where online tables are saved |
 | `KEEP_DAYS` | `7` | Tables untouched this long are deleted |
+| `ONLY_GAME` | (none) | Run just this game on this site, e.g. `scribble` |
+| `MAIN_URL` | (none) | On a single-game site: the main site's address, for “All games” and other tables |
+| `SCRIBBLE_URL` | (none) | On the main site: where Scribble runs, if it has its own site |
 | `ADMIN_KEY` | (none) | Password for reading game requests at `/admin/requests`. Without it that page stays off |
 | `REQUESTS_FILE` | `data/requests.json` | Where game requests are saved |
 | `GITHUB_TOKEN` | (none) | Optional: also open each game request as a GitHub issue |
@@ -130,4 +144,4 @@ Hidden information (other players' hands) is sent to every browser at the table 
 
 **Bingo:** the number grid game for 2–8 players. The host picks the grid: 5×5 (1–25, the classic), 6×6, 7×7 or 8×8 (1–64) for bigger groups. Fill your grid (tap squares in order, or shuffle), take turns calling numbers, and be first to five complete lines (B-I-N-G-O) on any size. Players who reach five on the same call share the round. Friends can join between rounds.
 
-**Scribble:** draw and guess for 2–12 players, online (everyone on their own phone or computer). Each turn the artist picks an Easy, Medium or Hard word (500+ drawable words; medium scores 15% more, hard 30%) and draws it live with a brush, fill bucket, eraser, sixteen colours and a colour wheel for any other colour. Everyone else types guesses; the blanks show each word's letter count, and the guess box counts the letters you've typed. A right guess earns up to 500: half for the time left, half for how many got it before you. The artist is paid for the share of players who guessed (up to 150, plus 25 when everyone does, nothing when nobody does), so a quick guesser always scores more. Letters are revealed as the clock runs down, near misses are told privately, and everyone draws once a round. The host sets the rounds and seconds to draw. The drawing streams through the artist's live connection (each update repeats the last few strokes), and the artist's own device saves the whole picture to the server every couple of seconds (`tables/CODE-ink-PLAYER`). Anyone who misses an update, joins late or reloads fetches that copy and carries on; a screen that gets no live strokes for 5 seconds keeps fetching it; and the artist can reload mid-turn without losing the picture.
+**Scribble:** draw and guess for 2–12 players, online (everyone on their own phone or computer). Each turn the artist picks an Easy, Medium or Hard word (about 1,770 drawable words; medium scores 15% more, hard 30%) and draws it live with a brush, line/box/circle shapes, fill bucket, eraser, sixteen colours and a colour wheel for any other colour. Everyone else types guesses; the blanks show each word's letter count, and the guess box counts the letters you've typed. A right guess earns up to 500: half for the time left, half for how many got it before you. The artist is paid for the share of players who guessed (up to 150, plus 25 when everyone does, nothing when nobody does), so a quick guesser always scores more. Everyone but the artist can give each drawing a 👍 or 👎 (each 👍 adds 15 points for the artist, each 👎 takes 15 away, counted when the word is revealed). Words already offered at a table don't come back until every word of their level has been seen, across games too. The host can type the group's own words in the lobby (names, places, inside jokes): they take the middle choice each turn, or all three with “Use only my words”. Viewers can tap 😂 🔥 👏 😮 🤔 to float a reaction over the drawing on every screen, the last ten seconds tick, and each drawing is kept on every device as it's revealed, so at the end (or from the ☰ menu) players can flip through the game's drawings and save any as a picture. Letters are revealed as the clock runs down, near misses are told privately, and everyone draws once a round. The host sets the rounds and seconds to draw. The drawing streams through the artist's live connection (each update repeats the last few strokes), and the artist's own device saves the whole picture to the server every couple of seconds (`tables/CODE-ink-PLAYER`). Anyone who misses an update, joins late or reloads fetches that copy and carries on; a screen that gets no live strokes for 5 seconds keeps fetching it; and the artist can reload mid-turn without losing the picture.

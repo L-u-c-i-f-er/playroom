@@ -291,3 +291,14 @@ for (const [E, name] of [[U, 'uno'], [F, 'uno flip']]){
   }
   console.log(`ok: uno no mercy — rules verified; ${matches} random matches over ${rounds} rounds (${kos} mercy knockouts, ${stacks} stacking chances)`);
 }
+// The host's cap on one round's score
+{
+  const s = ENG.uno.newGame([{id:'p0', name:'A'}, {id:'p1', name:'B'}], {cfg:{target:500, max:50}});
+  const top = s.pile.at(-1), f = ENG.uno.face(s, top), c = s.color ?? 0;
+  const play = ENG.uno.CARDS.findIndex((x, i) => x[0].c === c && /^\d$/.test(x[0].v) && i !== top);
+  s.players[s.turn].hand = [play]; s.step = 'play'; s.pend = null;
+  const other = s.players[1 - s.turn]; other.hand = ENG.uno.CARDS.map((x, i) => i).filter(i => ENG.uno.CARDS[i][0].c == null).slice(0, 4);   // four wilds: 200 points
+  assert.strictEqual(ENG.uno.apply(s, s.players[s.turn].id, {t:'play', card:play}), undefined);
+  assert.strictEqual(s.gain, 50, 'capped at the host’s 50'); assert(s.capped);
+}
+console.log('ok: uno — round cap verified');

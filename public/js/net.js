@@ -57,6 +57,7 @@ const PlayNet = (() => {
     if (m.id && waits.has(m.id)){ const w = waits.get(m.id); waits.delete(m.id); m.error ? w.reject({code:m.error, message:m.error}) : w.resolve(m.data); return; }
     if (m.t === 'doc') docSubs.get(m.path)?.forEach(fn => fn(snap(m.data)));
     if (m.t === 'peers') rooms.get(m.room)?.setPeers(m.peers);
+    if (m.t === 'peer') rooms.get(m.room)?.setPeer(m.peer, m.presence);   // just the one player who changed
   }
   // After a reconnect: follow the same tables and rejoin the same rooms with the same presence.
   function restore(){
@@ -85,8 +86,9 @@ const PlayNet = (() => {
     const r = {
       name,
       setPeers(list){ peers = Object.freeze(list.map(p => Object.freeze({...p, isMe:p.peer === peerId, sameTab:p.peer === peerId, by:null, kind:'viewer', guest:false, updatedAt:Date.now()}))); notify(); },
+      setPeer(peer, presence){ r.setPeers([...peers.filter(p => p.peer !== peer), {peer, presence}]); },
       drop(){ peers = []; notify(); },
-      rejoin(){ call({t:'join', room:name, presence:mine}).catch(() => {}); },
+      rejoin(){ call({t:'join', room:name, presence:mine, d:1}).catch(() => {}); },
       presence(patch){
         mine = {...mine, ...patch};
         for (const k of Object.keys(patch)) if (patch[k] === null) delete mine[k];
@@ -102,7 +104,7 @@ const PlayNet = (() => {
   const lobby = {
     async join(name){
       const r = room(name); rooms.set(name, r);
-      await call({t:'join', room:name, presence:{}});
+      await call({t:'join', room:name, presence:{}, d:1});
       return r;
     },
   };

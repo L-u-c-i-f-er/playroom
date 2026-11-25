@@ -10,6 +10,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import {fileURLToPath} from 'node:url';
+import zlib from 'node:zlib';
 import {WebSocketServer} from 'ws';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
@@ -135,22 +136,49 @@ ${requests.length ? `<h2>Most wanted</h2><table><tr><th>Asks</th><th>Game</th><t
 /* ---------- static files ---------- */
 const TYPES = {'.html':'text/html; charset=utf-8', '.css':'text/css; charset=utf-8', '.js':'text/javascript; charset=utf-8', '.json':'application/json',
   '.svg':'image/svg+xml', '.png':'image/png', '.ico':'image/x-icon', '.webmanifest':'application/manifest+json'};
+const files = new Map();   // path -> {mtime, body, gz, etag, type}
+/* ---------- one game on its own site ----------
+   The same code can run as two sites. On the Scribble site set ONLY_GAME=scribble and MAIN_URL (the main site's
+   address); on the main site set SCRIBBLE_URL (the Scribble site's address). The page reads these from /config.js:
+   the main site's Scribble tile then opens the Scribble site, the Scribble site opens straight into Scribble, and a
+   table code typed on the wrong site is passed to the right one. With none of them set, everything runs here. */
+const clip = u => String(u || '').trim().replace(/\/+$/, '');
+const SITE = {only:process.env.ONLY_GAME || null, main:clip(process.env.MAIN_URL) || null, away:process.env.SCRIBBLE_URL ? {scribble:clip(process.env.SCRIBBLE_URL)} : {}};
+const CONFIG_JS = `window.PLAYROOM=${JSON.stringify(SITE)};`;
 const server = http.createServer((req, res) => {
   let p;
   try { p = decodeURIComponent(new URL(req.url, 'http://x').pathname); } catch { res.writeHead(400).end(); return; }
   if (p === '/healthz'){ res.writeHead(200, {'content-type':'text/plain'}).end('ok'); return; }
+  if (p === '/config.js'){ res.writeHead(200, {'content-type':'text/javascript; charset=utf-8', 'cache-control':'no-cache'}).end(CONFIG_JS); return; }
+  // The other site asks whether a table code lives here (and for which game), so it can send the player over.
+  const has = p.match(/^\/api\/has\/([A-Z0-9]{5})$/);
+  if (has){
+    const game = docs.get('tables/' + has[1])?.data?.state?.game;
+    res.writeHead(game ? 200 : 404, {'content-type':'application/json', 'cache-control':'no-store', 'access-control-allow-origin':'*'}).end(JSON.stringify(game ? {game} : {}));
+    return;
+  }
   if (p === '/api/requests'){ if (req.method === 'POST') postRequest(req, res).catch(() => json(res, 500, {error:'Couldn’t save that. Try again'})); else res.writeHead(405).end(); return; }
   if (p === '/api/bugs'){ if (req.method === 'POST') postBug(req, res).catch(() => json(res, 500, {error:'Couldn’t send that. Try again'})); else res.writeHead(405).end(); return; }
   if (p === '/admin/requests' || p === '/admin/requests.json' || p === '/admin/bugs.json'){ adminRequests(req, res, p === '/admin/bugs.json' ? 'bugs' : p.endsWith('.json')); return; }
   if (p.endsWith('/')) p += 'index.html';
   const file = path.join(PUBLIC, path.normalize(p));
   if (!file.startsWith(PUBLIC + path.sep)){ res.writeHead(403).end(); return; }
-  fs.readFile(file, (err, body) => {
-    if (err){ res.writeHead(404, {'content-type':'text/plain'}).end('Not found'); return; }
-    const ext = path.extname(file);
-    // no-cache: after a deploy, browsers never mix a new page with old scripts.
-    res.writeHead(200, {'content-type':TYPES[ext] || 'application/octet-stream', 'cache-control':'no-cache', 'x-content-type-options':'nosniff'});
-    res.end(body);
+  fs.stat(file, (err, st) => {
+    if (err || !st.isFile()){ res.writeHead(404, {'content-type':'text/plain'}).end('Not found'); return; }
+    let f = files.get(file);
+    if (!f || f.mtime !== st.mtimeMs){
+      let body; try { body = fs.readFileSync(file); } catch { res.writeHead(404).end(); return; }
+      const type = TYPES[path.extname(file)] || 'application/octet-stream';
+      f = {mtime:st.mtimeMs, body, type, etag:`"${crypto.createHash('sha1').update(body).digest('hex').slice(0, 16)}"`,
+        gz:/text|javascript|json|svg/.test(type) && body.length > 512 ? zlib.gzipSync(body, {level:9}) : null};
+      files.set(file, f);
+    }
+    // no-cache: the browser asks every time, so a deploy never mixes a new page with old scripts; unchanged files cost a 304.
+    const head = {'content-type':f.type, 'cache-control':'no-cache', etag:f.etag, vary:'accept-encoding', 'x-content-type-options':'nosniff'};
+    if (req.headers['if-none-match'] === f.etag){ res.writeHead(304, head).end(); return; }
+    const gz = f.gz && String(req.headers['accept-encoding'] || '').includes('gzip');
+    if (gz) head['content-encoding'] = 'gzip';
+    res.writeHead(200, head).end(gz ? f.gz : f.body);
   });
 });
 
@@ -162,10 +190,16 @@ const send = (ws, m) => ws.readyState === ws.OPEN && ws.send(JSON.stringify(m));
 const bytes = v => Buffer.byteLength(JSON.stringify(v) ?? '');
 const keyHash = k => crypto.createHash('sha256').update(String(k)).digest('hex');
 
-function broadcastPeers(name){
+const raw = (ws, text) => ws.readyState === ws.OPEN && ws.send(text);
+// The whole room (someone joined or left), or just the one player whose presence changed. Browsers that joined
+// before this was added still get the whole room every time.
+function broadcastPeers(name, changed){
   const room = rooms.get(name); if (!room) return;
-  const peers = [...room].map(([peer, m]) => ({peer, presence:m.presence}));
-  for (const m of room.values()) send(m.ws, {t:'peers', room:name, peers});
+  let all = null, one = null;
+  for (const m of room.values()){
+    if (changed && m.delta) raw(m.ws, one ||= JSON.stringify({t:'peer', room:name, peer:changed, presence:room.get(changed).presence}));
+    else raw(m.ws, all ||= JSON.stringify({t:'peers', room:name, peers:[...room].map(([peer, x]) => ({peer, presence:x.presence}))}));
+  }
 }
 function leaveRoom(ws, name){
   const room = rooms.get(name);
@@ -187,8 +221,10 @@ function handle(ws, m){
       if (cur && cur.key !== key) return reply(null, 'forbidden');
       if (!cur && docs.size >= MAX_TABLES) return reply(null, 'quota_exceeded');
       docs.set(m.path, {data:m.data, key, at:Date.now()}); save();
-      for (const s of subs.get(m.path) || []) if (s !== ws) send(s, {t:'doc', path:m.path, data:m.data});
-      return reply(true);
+      reply(true);
+      let text = null;
+      for (const s of subs.get(m.path) || []) if (s !== ws) raw(s, text ||= JSON.stringify({t:'doc', path:m.path, data:m.data}));
+      return;
     }
     case 'sub':
       if (!DOC_PATH.test(m.path)) return reply(null, 'invalid_argument');
@@ -202,7 +238,7 @@ function handle(ws, m){
       if (!ROOM_NAME.test(m.room)) return reply(null, 'invalid_argument');
       if (!rooms.has(m.room)) rooms.set(m.room, new Map());
       const presence = m.presence && typeof m.presence === 'object' && bytes(m.presence) <= MAX_PRESENCE ? m.presence : {};
-      rooms.get(m.room).set(ws.peer, {ws, presence}); ws.rooms.add(m.room);
+      rooms.get(m.room).set(ws.peer, {ws, presence, delta:m.d === 1}); ws.rooms.add(m.room);
       reply({peer:ws.peer}); broadcastPeers(m.room);
       return;
     }
@@ -210,7 +246,7 @@ function handle(ws, m){
       const me = rooms.get(m.room)?.get(ws.peer);
       if (!me) return reply(null, 'not_joined');
       if (!m.presence || typeof m.presence !== 'object' || bytes(m.presence) > MAX_PRESENCE) return reply(null, 'invalid_argument');
-      me.presence = m.presence; reply(true); broadcastPeers(m.room);
+      me.presence = m.presence; reply(true); broadcastPeers(m.room, ws.peer);
       return;
     }
     case 'leave':
@@ -222,8 +258,10 @@ function handle(ws, m){
   }
 }
 
-const wss = new WebSocketServer({server, path:'/ws', maxPayload:MAX_DOC + 16 * 1024});
+const wss = new WebSocketServer({server, path:'/ws', maxPayload:MAX_DOC + 16 * 1024,
+  perMessageDeflate:{threshold:1024, zlibDeflateOptions:{level:3}, serverNoContextTakeover:true, clientNoContextTakeover:true}});
 wss.on('connection', ws => {
+  ws._socket?.setNoDelay(true);   // send each move at once, don't wait to batch
   ws.peer = crypto.randomBytes(8).toString('hex'); ws.rooms = new Set(); ws.subs = new Set(); ws.alive = true;
   send(ws, {t:'hello', peer:ws.peer, build:BUILD});
   ws.on('pong', () => { ws.alive = true; });

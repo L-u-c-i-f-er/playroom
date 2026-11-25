@@ -11,7 +11,7 @@ const COLORS = {
   yellow:    {n:3, rent:[2,4,6],   name:'Yellow',     hex:'#f2cb2f', ink:'#2a2203'},
   green:     {n:3, rent:[2,4,7],   name:'Green',      hex:'#1e9a58', ink:'#fff'},
   darkblue:  {n:2, rent:[3,8],     name:'Dark Blue',  hex:'#2747a3', ink:'#fff'},
-  railroad:  {n:4, rent:[1,2,3,4], name:'Railroad',   hex:'#2a2a2e', ink:'#fff'},
+  railroad:  {n:4, rent:[1,2,3,4], name:'Railway',    hex:'#2a2a2e', ink:'#fff'},
   utility:   {n:2, rent:[1,2],     name:'Utility',    hex:'#a7d6b6', ink:'#10261a'},
 };
 const CK = Object.keys(COLORS);
@@ -19,11 +19,12 @@ const CARDS = [];
 const add = (o, k = 1) => { for (let i = 0; i < k; i++) CARDS.push({...o, id: CARDS.length}); };
 [[10,1],[5,2],[4,3],[3,3],[2,5],[1,6]].forEach(([v,k]) => add({type:'money', value:v, name:`$${v}M`}, k));
 const STREETS = {
-  brown:['Mediterranean Ave','Baltic Ave'], lightblue:['Oriental Ave','Vermont Ave','Connecticut Ave'],
-  pink:['St. Charles Place','States Ave','Virginia Ave'], orange:['St. James Place','Tennessee Ave','New York Ave'],
-  red:['Kentucky Ave','Indiana Ave','Illinois Ave'], yellow:['Atlantic Ave','Ventnor Ave','Marvin Gardens'],
-  green:['Pacific Ave','North Carolina Ave','Pennsylvania Ave'], darkblue:['Park Place','Boardwalk'],
-  railroad:['Reading Railroad','Pennsylvania Railroad','B. & O. Railroad','Short Line'], utility:['Electric Company','Water Works'],
+  // Each colour is one state: Bihar, Madhya Pradesh, Rajasthan, Uttar Pradesh, Tamil Nadu, Kerala, Karnataka, Maharashtra.
+  brown:['Gaya','Patna'], lightblue:['Gwalior','Indore','Bhopal'],
+  pink:['Jodhpur','Udaipur','Jaipur'], orange:['Agra','Varanasi','Lucknow'],
+  red:['Coimbatore','Madurai','Chennai'], yellow:['Alleppey','Munnar','Kochi'],
+  green:['Mangaluru','Mysuru','Bengaluru'], darkblue:['Pune','Mumbai'],
+  railroad:['Mumbai CST','Howrah Junction','Chennai Central','New Delhi Station'], utility:['Electric Company','Water Works'],
 };
 const PVAL = {brown:1, lightblue:1, pink:2, orange:2, red:3, yellow:3, green:4, darkblue:4, railroad:2, utility:2};
 CK.forEach(c => STREETS[c].forEach(name => add({type:'prop', color:c, value:PVAL[c], name})));

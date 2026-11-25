@@ -36,7 +36,7 @@ const RUM = (() => {
     const {kinds, pure, seqs} = judge(s, groups);
     let t = 0;
     groups.forEach((g, i) => { const k = kinds[i]; if (!pure || (seqs < 2 ? k !== 'pure' : !k)) t += g.reduce((a, id) => a + pts(s, id), 0); });
-    return Math.min(80, t);
+    return Math.min(roundMax(s), t);
   }
   const same = (a, b) => a.length === b.length && [...a].sort((x, y) => x - y).every((v, i) => v === [...b].sort((x, y) => x - y)[i]);
   const clean = gs => Array.isArray(gs) ? gs.filter(Array.isArray).map(g => g.filter(Number.isInteger)).filter(g => g.length) : [];
@@ -75,7 +75,8 @@ const RUM = (() => {
     return [...gs, hand.filter(id => isWild(s, id))].filter(g => g.length);
   }
 
-  const cfg = {pool:0};   // 0: points rummy with no cap; otherwise out at that total
+  const cfg = {pool:0, max:80};   // max: the most one deal can cost a player (80 is the standard; 0 for no cap)
+  const roundMax = s => s?.cfg?.max > 0 ? s.cfg.max : s?.cfg?.max === 0 ? Infinity : 80;   // 0: points rummy with no cap; otherwise out at that total
   function newGame(seats, extra = {}){
     const round = (extra.round || 0) + 1, c = {...cfg, ...(extra.cfg || {})}, totals = {...(extra.totals || {})};
     const s = {...extra, cfg:c, phase:'play', gid:rid(8), round, totals, ack:extra.ack || {}, champion:null,
@@ -157,7 +158,7 @@ const RUM = (() => {
     }
     if (a.t === 'drop'){
       if (s.step !== 'draw') return 'You can only drop before picking a card';
-      p.status = 'drop'; p.score = p.drew ? 40 : 20;
+      p.status = 'drop'; p.score = Math.min(roundMax(s), p.drew ? 40 : 20);
       log(s, `${p.name} dropped (${p.score} points)`, 'big', {title:'Dropped', sub:`${p.name} · ${p.score} points`});
       return advance(s);
     }
@@ -175,8 +176,8 @@ const RUM = (() => {
         if (!needs(s).length) finish(s);
         return;
       }
-      p.status = 'out'; p.score = 80;
-      log(s, `${p.name} made a wrong declaration (80 points)`, 'big', {title:'Wrong declaration', sub:`${p.name} · 80 points`});
+      p.status = 'out'; p.score = s.cfg.max || 80;
+      log(s, `${p.name} made a wrong declaration (${p.score} points)`, 'big', {title:'Wrong declaration', sub:`${p.name} · ${p.score} points`});
       return advance(s);
     }
     return 'That move was not understood';
@@ -249,6 +250,7 @@ const RUM = (() => {
           <p>Hand the device around. Each hand stays hidden behind a pass screen.</p>
           <div class="names">${locals}</div>
           <div class="field"><label for="rcaph">Pool: out at</label><div class="row">${capInput('rcaph', 'pool', cfg.pool, [0, 101, 201], 0, 1000)}<span class="muted">points · 0 for no limit</span></div></div>
+          <div class="field"><label for="rmaxh">Most one deal can cost</label><div class="row">${capInput('rmaxh', 'max', cfg.max, [40, 60, 80, 120], 0, 1000)}<span class="muted">points · 80 is standard · 0 for no cap</span></div></div>
           <div class="row">${form.locals.length < 6 ? '<button class="btn small" data-do="ladd6">Add player</button>' : ''}<button class="btn gold" data-do="rlocal" style="margin-left:auto">Start game</button></div>
           ${saved?.phase && saved.phase !== 'over' ? `<button class="btn small" data-do="rresume">Resume saved game (${saved.players.map(p => esc(p.name)).join(', ')})</button>` : ''}
         </div>
@@ -410,7 +412,8 @@ const RUM = (() => {
   };
   return {name:'Rummy', min:2, max:6, cfg, late, timeout, newGame, apply, needs, home, view, rules, art, classify, judge, score, auto, bySuit, card, isWild, pc,
     lobby:(s, host) => host
-      ? `<div class="row"><label class="muted" for="rcap">Pool: out at</label>${capInput('rcap', 'pool', s.cfg?.pool ?? cfg.pool, [0, 101, 201], 0, 1000)}<span class="muted">points · 0 for no limit</span></div>`
-      : `<p class="muted">${s.cfg?.pool ? `Pool rummy: out at ${s.cfg.pool} points` : 'Points rummy: no limit'}</p>`};
+      ? `<div class="row"><label class="muted" for="rcap">Pool: out at</label>${capInput('rcap', 'pool', s.cfg?.pool ?? cfg.pool, [0, 101, 201], 0, 1000)}<span class="muted">points · 0 for no limit</span></div>
+        <div class="row"><label class="muted" for="rmax">Most one round can cost</label>${capInput('rmax', 'max', s.cfg?.max ?? cfg.max, [40, 60, 80, 120], 0, 1000)}<span class="muted">points · 80 is standard · 0 for no cap</span></div>`
+      : `<p class="muted">${s.cfg?.pool ? `Pool rummy: out at ${s.cfg.pool} points` : 'Points rummy: no limit'} · ${(s.cfg?.max ?? cfg.max) ? `a deal costs at most ${s.cfg?.max ?? cfg.max}` : 'no cap on a deal'}</p>`};
 })();
 ENG.rummy = RUM;
